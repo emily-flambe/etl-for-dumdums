@@ -65,6 +65,8 @@ Syncs Linear issues to BigQuery.
 - **Schedule**: Daily at 6 AM UTC
 - **Table**: `raw_data.linear_issues`
 - **Lookback**: Issues updated in last 7 days
-- **Mode**: Full replace (WRITE_TRUNCATE)
+- **Mode**: Incremental merge (upsert by `id`)
+
+Uses MERGE to insert new issues and update existing ones. This preserves historical data that Linear's API may no longer return (e.g., old sprint details).
 
 **Columns**: id, identifier, title, state, assignee, priority, created_at, updated_at, project_name

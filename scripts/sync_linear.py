@@ -172,10 +172,10 @@ def main():
         logger.info("No issues found in the specified date range")
         return
 
-    # Transform and load to BigQuery
+    # Transform and merge to BigQuery (incremental upsert)
     rows = transform_issues(issues)
     client = bq.get_client()
-    bq.load_table(client, TABLE_ID, rows, TABLE_SCHEMA)
+    bq.merge_table(client, TABLE_ID, rows, TABLE_SCHEMA, primary_key="id")
 
     logger.info("Sync completed successfully")
 
