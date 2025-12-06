@@ -177,29 +177,34 @@ def merge_table(
     job = client.load_table_from_json(rows, temp_table_ref, job_config=job_config)
     job.result()
 
-    # Build column lists for MERGE statement
-    columns = [field.name for field in schema]
-    update_cols = [c for c in columns if c != primary_key]
+    try:
+        # Build column lists for MERGE statement
+        columns = [field.name for field in schema]
+        update_cols = [c for c in columns if c != primary_key]
 
-    update_clause = ", ".join([f"T.{c} = S.{c}" for c in update_cols])
-    insert_cols = ", ".join(columns)
-    insert_vals = ", ".join([f"S.{c}" for c in columns])
+        update_clause = ", ".join([f"T.{c} = S.{c}" for c in update_cols])
+        insert_cols = ", ".join(columns)
+        insert_vals = ", ".join([f"S.{c}" for c in columns])
 
-    merge_sql = f"""
-    MERGE `{table_ref}` T
-    USING `{temp_table_ref}` S
-    ON T.{primary_key} = S.{primary_key}
-    WHEN MATCHED THEN
-        UPDATE SET {update_clause}
-    WHEN NOT MATCHED THEN
-        INSERT ({insert_cols})
-        VALUES ({insert_vals})
-    """
+        merge_sql = f"""
+        MERGE `{table_ref}` T
+        USING `{temp_table_ref}` S
+        ON T.{primary_key} = S.{primary_key}
+        WHEN MATCHED THEN
+            UPDATE SET {update_clause}
+        WHEN NOT MATCHED THEN
+            INSERT ({insert_cols})
+            VALUES ({insert_vals})
+        """
 
-    logger.info(f"Merging into {table_ref}...")
-    query_job = client.query(merge_sql)
-    query_job.result()
-
-    # Clean up temp table
-    client.delete_table(temp_table_ref)
-    logger.info(f"Merged {len(rows)} rows into {table_ref}")
+        logger.info(f"Merging into {table_ref}...")
+        query_job = client.query(merge_sql)
+        query_job.result()
+        logger.info(f"Merged {len(rows)} rows into {table_ref}")
+    finally:
+        # Always clean up temp table, even on failure
+        try:
+            client.delete_table(temp_table_ref)
+            logger.debug(f"Cleaned up temp table {temp_table_ref}")
+        except Exception:
+            logger.warning(f"Failed to clean up temp table {temp_table_ref}")

@@ -44,7 +44,8 @@ query GetIssues($after: String, $filter: IssueFilter) {
 class LinearIssuesSource(Source):
     """Fetches issues from Linear."""
 
-    table_id = "linear_issues"
+    dataset_id = "linear"
+    table_id = "issues"
     primary_key = "id"
     schema = [
         bigquery.SchemaField("id", "STRING", mode="REQUIRED"),

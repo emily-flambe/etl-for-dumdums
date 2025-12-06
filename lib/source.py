@@ -20,6 +20,7 @@ class Source(ABC):
     Base class for data sources.
 
     Subclasses must define:
+        - dataset_id: Target BigQuery dataset (e.g., "linear", "github")
         - table_id: Target BigQuery table name
         - primary_key: Column used for merge/upsert matching
         - schema: List of BigQuery SchemaField definitions
@@ -27,6 +28,7 @@ class Source(ABC):
         - transform(): Convert raw data to BigQuery row format
     """
 
+    dataset_id: str
     table_id: str
     primary_key: str
     schema: list[bigquery.SchemaField]
@@ -66,8 +68,17 @@ def run_sync(source: Source, full_refresh: bool = False) -> None:
     client = bq.get_client()
 
     if full_refresh:
-        bq.load_table(client, source.table_id, rows, source.schema)
+        bq.load_table(
+            client, source.table_id, rows, source.schema, dataset_id=source.dataset_id
+        )
     else:
-        bq.merge_table(client, source.table_id, rows, source.schema, source.primary_key)
+        bq.merge_table(
+            client,
+            source.table_id,
+            rows,
+            source.schema,
+            source.primary_key,
+            dataset_id=source.dataset_id,
+        )
 
     logger.info(f"Sync complete for {source.__class__.__name__}")
