@@ -35,6 +35,7 @@ query GetIssues($after: String, $filter: IssueFilter) {
             createdAt
             updatedAt
             project { name }
+            labels { nodes { name } }
         }
     }
 }
@@ -57,6 +58,7 @@ class LinearIssuesSource(Source):
         bigquery.SchemaField("created_at", "TIMESTAMP"),
         bigquery.SchemaField("updated_at", "TIMESTAMP"),
         bigquery.SchemaField("project_name", "STRING"),
+        bigquery.SchemaField("labels", "STRING", mode="REPEATED"),
     ]
 
     def __init__(self, lookback_days: int = 7):
@@ -131,6 +133,7 @@ class LinearIssuesSource(Source):
                 "created_at": issue["createdAt"],
                 "updated_at": issue["updatedAt"],
                 "project_name": issue["project"]["name"] if issue["project"] else None,
+                "labels": [label["name"] for label in issue["labels"]["nodes"]],
             }
             for issue in raw_data
         ]
