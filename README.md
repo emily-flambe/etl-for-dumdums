@@ -1,79 +1,70 @@
 # GitHub Actions Workflows
 
-Scheduled ETL jobs that pull data from various APIs and write to BigQuery.
+ETL jobs for syncing data from various APIs to BigQuery. Can be run ad-hoc locally or on a schedule via GitHub Actions.
 
-## Workflows
+## Project Structure
 
-### Linear Sync (`linear-sync.yml`)
+```
+github-actions-workflows/
+├── .github/workflows/    # GitHub Actions workflow definitions
+├── lib/                  # Shared utilities (BigQuery client, etc.)
+├── scripts/              # Individual sync scripts
+└── requirements.txt
+```
 
-Syncs Linear issues to BigQuery daily at 6 AM UTC.
+## Setup
 
-- Pulls all issues updated in the last 7 days
-- Writes to `raw_data.linear_issues` table in BigQuery
-- Uses WRITE_TRUNCATE mode (replaces all data each run)
+### 1. Install dependencies
 
-## Required Secrets
+```bash
+pip install -r requirements.txt
+```
 
-Configure the following secrets in your GitHub repository settings (Settings > Secrets and variables > Actions):
+### 2. Configure credentials
 
-### `LINEAR_API_KEY`
+You need three things:
+- **Linear API key** - from Linear Settings > API > Personal API keys
+- **GCP Project ID** - your Google Cloud project
+- **GCP Service Account** - with BigQuery Data Editor + User roles
 
-Your Linear API key for accessing the GraphQL API.
+## Running Scripts
 
-**How to get it:**
-1. Go to Linear Settings (click your profile picture > Settings)
-2. Navigate to "API" in the left sidebar
-3. Click "Create key" under "Personal API keys"
-4. Copy the generated key
+### Ad-hoc (local)
 
-### `GCP_PROJECT_ID`
+```bash
+export LINEAR_API_KEY="lin_api_xxxxx"
+export GCP_PROJECT_ID="your-project-id"
+export GCP_SA_KEY="$(base64 -i /path/to/credentials.json | tr -d '\n')"
 
-Your Google Cloud project ID where BigQuery tables will be created.
+python scripts/sync_linear.py
+```
 
-**How to get it:**
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Your project ID is shown in the project selector dropdown
-3. Or find it in Project Settings
+### Scheduled (GitHub Actions)
 
-### `GCP_SA_KEY`
+Add these secrets in GitHub repo settings (Settings > Secrets and variables > Actions):
 
-Base64-encoded Google Cloud service account JSON key with BigQuery write permissions.
+| Secret | Value |
+|--------|-------|
+| `LINEAR_API_KEY` | Your Linear API key |
+| `GCP_PROJECT_ID` | Your GCP project ID |
+| `GCP_SA_KEY` | Base64-encoded service account JSON |
 
-**How to get it:**
+To base64 encode your credentials:
+```bash
+base64 -i credentials.json | tr -d '\n'
+```
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Navigate to IAM & Admin > Service Accounts
-3. Create a new service account or use an existing one
-4. Grant the following roles:
-   - `BigQuery Data Editor` (to write data)
-   - `BigQuery Job User` (to run load jobs)
-5. Create a JSON key for the service account
-6. Base64 encode the JSON file:
-   ```bash
-   base64 -i your-service-account-key.json | tr -d '\n'
-   ```
-7. Copy the output and use it as the secret value
+Workflows run on their defined schedules. To trigger manually: Actions tab > Select workflow > Run workflow.
 
-## Manual Triggering
+## Available Scripts
 
-You can manually trigger the workflow:
+### `sync_linear.py`
 
-1. Go to the Actions tab in your GitHub repository
-2. Select "Sync Linear Issues to BigQuery"
-3. Click "Run workflow"
+Syncs Linear issues to BigQuery.
 
-## BigQuery Schema
+- **Schedule**: Daily at 6 AM UTC
+- **Table**: `raw_data.linear_issues`
+- **Lookback**: Issues updated in last 7 days
+- **Mode**: Full replace (WRITE_TRUNCATE)
 
-The `linear_issues` table contains:
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | STRING | Linear issue UUID |
-| identifier | STRING | Human-readable ID (e.g., ENG-123) |
-| title | STRING | Issue title |
-| state | STRING | Current state (e.g., In Progress, Done) |
-| assignee | STRING | Assigned user's name |
-| priority | INTEGER | Priority level (0-4) |
-| created_at | TIMESTAMP | When the issue was created |
-| updated_at | TIMESTAMP | When the issue was last updated |
-| project_name | STRING | Associated project name |
+**Columns**: id, identifier, title, state, assignee, priority, created_at, updated_at, project_name

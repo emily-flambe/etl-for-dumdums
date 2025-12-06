@@ -6,28 +6,43 @@ Pulls issues updated in the last 7 days from Linear's GraphQL API
 and writes them to BigQuery.
 """
 
-import base64
-import json
 import logging
 import os
+import sys
 from datetime import datetime, timedelta, timezone
 
 import requests
 from google.cloud import bigquery
 
+# Add parent directory to path for lib imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from lib import bigquery as bq
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
 LINEAR_API_URL = "https://api.linear.app/graphql"
-DATASET_ID = "raw_data"
 TABLE_ID = "linear_issues"
 
+TABLE_SCHEMA = [
+    bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("identifier", "STRING"),
+    bigquery.SchemaField("title", "STRING"),
+    bigquery.SchemaField("state", "STRING"),
+    bigquery.SchemaField("assignee", "STRING"),
+    bigquery.SchemaField("priority", "INTEGER"),
+    bigquery.SchemaField("created_at", "TIMESTAMP"),
+    bigquery.SchemaField("updated_at", "TIMESTAMP"),
+    bigquery.SchemaField("project_name", "STRING"),
+]
 
-def get_linear_client():
+
+def get_linear_api_key() -> str:
     """Get Linear API key from environment."""
     api_key = os.environ.get("LINEAR_API_KEY")
     if not api_key:
@@ -35,36 +50,22 @@ def get_linear_client():
     return api_key
 
 
-def get_bigquery_client():
-    """Create BigQuery client from base64-encoded service account key."""
-    gcp_sa_key_b64 = os.environ.get("GCP_SA_KEY")
-    project_id = os.environ.get("GCP_PROJECT_ID")
-
-    if not gcp_sa_key_b64:
-        raise ValueError("GCP_SA_KEY environment variable is not set")
-    if not project_id:
-        raise ValueError("GCP_PROJECT_ID environment variable is not set")
-
-    # Decode base64 service account key
-    sa_key_json = base64.b64decode(gcp_sa_key_b64).decode("utf-8")
-    sa_info = json.loads(sa_key_json)
-
-    client = bigquery.Client.from_service_account_info(
-        sa_info,
-        project=project_id
-    )
-    return client
-
-
-def fetch_linear_issues(api_key, since_date):
+def fetch_issues(api_key: str, since_date: datetime) -> list[dict]:
     """
     Fetch all issues updated since the given date from Linear.
 
-    Uses cursor-based pagination to get all results.
+    Uses cursor-based pagination to retrieve all matching results.
+
+    Args:
+        api_key: Linear API key
+        since_date: Only fetch issues updated after this date
+
+    Returns:
+        List of issue dictionaries from Linear API
     """
     headers = {
         "Authorization": api_key,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     query = """
@@ -78,18 +79,12 @@ def fetch_linear_issues(api_key, since_date):
                 id
                 identifier
                 title
-                state {
-                    name
-                }
-                assignee {
-                    name
-                }
+                state { name }
+                assignee { name }
                 priority
                 createdAt
                 updatedAt
-                project {
-                    name
-                }
+                project { name }
             }
         }
     }
@@ -100,27 +95,22 @@ def fetch_linear_issues(api_key, since_date):
     page = 1
 
     while True:
-        logger.info(f"Fetching page {page} of Linear issues...")
+        logger.info(f"Fetching page {page} from Linear API...")
 
         variables = {
             "after": cursor,
-            "filter": {
-                "updatedAt": {
-                    "gte": since_date.isoformat()
-                }
-            }
+            "filter": {"updatedAt": {"gte": since_date.isoformat()}},
         }
 
         response = requests.post(
             LINEAR_API_URL,
             headers=headers,
             json={"query": query, "variables": variables},
-            timeout=30
+            timeout=30,
         )
         response.raise_for_status()
 
         data = response.json()
-
         if "errors" in data:
             raise Exception(f"Linear API error: {data['errors']}")
 
@@ -128,7 +118,7 @@ def fetch_linear_issues(api_key, since_date):
         nodes = issues_data["nodes"]
         all_issues.extend(nodes)
 
-        logger.info(f"Fetched {len(nodes)} issues on page {page}")
+        logger.info(f"Retrieved {len(nodes)} issues on page {page}")
 
         if not issues_data["pageInfo"]["hasNextPage"]:
             break
@@ -140,11 +130,18 @@ def fetch_linear_issues(api_key, since_date):
     return all_issues
 
 
-def transform_issues(issues):
-    """Transform Linear issues to BigQuery row format."""
-    rows = []
-    for issue in issues:
-        row = {
+def transform_issues(issues: list[dict]) -> list[dict]:
+    """
+    Transform Linear API response to BigQuery row format.
+
+    Args:
+        issues: Raw issue data from Linear API
+
+    Returns:
+        List of flattened dictionaries matching TABLE_SCHEMA
+    """
+    return [
+        {
             "id": issue["id"],
             "identifier": issue["identifier"],
             "title": issue["title"],
@@ -155,60 +152,8 @@ def transform_issues(issues):
             "updated_at": issue["updatedAt"],
             "project_name": issue["project"]["name"] if issue["project"] else None,
         }
-        rows.append(row)
-    return rows
-
-
-def ensure_dataset_exists(client, dataset_id):
-    """Create dataset if it doesn't exist."""
-    dataset_ref = client.dataset(dataset_id)
-    try:
-        client.get_dataset(dataset_ref)
-        logger.info(f"Dataset {dataset_id} already exists")
-    except Exception:
-        dataset = bigquery.Dataset(dataset_ref)
-        dataset.location = "US"
-        client.create_dataset(dataset)
-        logger.info(f"Created dataset {dataset_id}")
-
-
-def write_to_bigquery(client, rows):
-    """Write rows to BigQuery table, creating if necessary."""
-    project_id = os.environ.get("GCP_PROJECT_ID")
-    table_ref = f"{project_id}.{DATASET_ID}.{TABLE_ID}"
-
-    # Define schema
-    schema = [
-        bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
-        bigquery.SchemaField("identifier", "STRING"),
-        bigquery.SchemaField("title", "STRING"),
-        bigquery.SchemaField("state", "STRING"),
-        bigquery.SchemaField("assignee", "STRING"),
-        bigquery.SchemaField("priority", "INTEGER"),
-        bigquery.SchemaField("created_at", "TIMESTAMP"),
-        bigquery.SchemaField("updated_at", "TIMESTAMP"),
-        bigquery.SchemaField("project_name", "STRING"),
+        for issue in issues
     ]
-
-    # Ensure dataset exists
-    ensure_dataset_exists(client, DATASET_ID)
-
-    # Configure job to truncate and replace
-    job_config = bigquery.LoadJobConfig(
-        schema=schema,
-        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
-    )
-
-    logger.info(f"Writing {len(rows)} rows to {table_ref}...")
-
-    job = client.load_table_from_json(
-        rows,
-        table_ref,
-        job_config=job_config
-    )
-    job.result()  # Wait for job to complete
-
-    logger.info(f"Successfully wrote {len(rows)} rows to {table_ref}")
 
 
 def main():
@@ -219,21 +164,18 @@ def main():
     since_date = datetime.now(timezone.utc) - timedelta(days=7)
     logger.info(f"Fetching issues updated since {since_date.isoformat()}")
 
-    # Initialize clients
-    linear_api_key = get_linear_client()
-    bq_client = get_bigquery_client()
-
-    # Fetch and transform issues
-    issues = fetch_linear_issues(linear_api_key, since_date)
+    # Fetch from Linear
+    api_key = get_linear_api_key()
+    issues = fetch_issues(api_key, since_date)
 
     if not issues:
         logger.info("No issues found in the specified date range")
         return
 
+    # Transform and load to BigQuery
     rows = transform_issues(issues)
-
-    # Write to BigQuery
-    write_to_bigquery(bq_client, rows)
+    client = bq.get_client()
+    bq.load_table(client, TABLE_ID, rows, TABLE_SCHEMA)
 
     logger.info("Sync completed successfully")
 
