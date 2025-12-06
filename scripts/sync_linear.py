@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sync Linear issues to BigQuery."""
+"""Sync Linear data to BigQuery."""
 
 import logging
 import os
@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from lib.source import run_sync
-from sources.linear import LinearIssuesSource
+from sources.linear import LinearCyclesSource, LinearIssuesSource
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,5 +21,8 @@ logging.basicConfig(
 )
 
 if __name__ == "__main__":
-    source = LinearIssuesSource(lookback_days=7)
-    run_sync(source)
+    # Sync cycles first (dimension table)
+    run_sync(LinearCyclesSource())
+
+    # Then sync issues (fact table with cycle_id FK)
+    run_sync(LinearIssuesSource(lookback_days=7))

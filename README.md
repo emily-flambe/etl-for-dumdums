@@ -58,12 +58,30 @@ Add secrets in GitHub repo settings (Settings > Secrets and variables > Actions)
 
 ### Linear (`sync_linear.py`)
 
-Syncs issues from Linear to BigQuery.
+Syncs issues and cycles from Linear to BigQuery.
 
 - **Schedule**: Daily at midnight EST (5 AM UTC)
-- **Table**: `linear.issues`
-- **Lookback**: 7 days
 - **Mode**: Incremental merge on `id`
+
+**Tables:**
+
+| Table | Description |
+|-------|-------------|
+| `linear.cycles` | Cycle/sprint dimension table (all cycles) |
+| `linear.issues` | Issue fact table with `cycle_id` FK (last 7 days) |
+
+**Join for analysis:**
+```sql
+SELECT
+  i.identifier,
+  i.title,
+  i.state,
+  c.name AS cycle_name,
+  c.starts_at,
+  c.ends_at
+FROM linear.issues i
+LEFT JOIN linear.cycles c ON i.cycle_id = c.id
+```
 
 ## Adding a New Source
 

@@ -1,7 +1,7 @@
 """
 Linear data source.
 
-Fetches issues from Linear's GraphQL API.
+Fetches issues and cycles from Linear's GraphQL API.
 """
 
 import logging
@@ -36,10 +36,84 @@ query GetIssues($after: String, $filter: IssueFilter) {
             updatedAt
             project { name }
             labels { nodes { name } }
+            cycle { id }
         }
     }
 }
 """
+
+CYCLES_QUERY = """
+query GetCycles($after: String) {
+    cycles(first: 100, after: $after) {
+        pageInfo {
+            hasNextPage
+            endCursor
+        }
+        nodes {
+            id
+            number
+            name
+            startsAt
+            endsAt
+            team { name }
+        }
+    }
+}
+"""
+
+
+def get_api_key() -> str:
+    """Get Linear API key from environment."""
+    api_key = os.environ.get("LINEAR_API_KEY")
+    if not api_key:
+        raise ValueError("LINEAR_API_KEY environment variable is not set")
+    return api_key
+
+
+def fetch_paginated(query: str, root_field: str, variables: dict = None) -> list[dict]:
+    """Fetch all pages from a Linear GraphQL query."""
+    api_key = get_api_key()
+    headers = {
+        "Authorization": api_key,
+        "Content-Type": "application/json",
+    }
+
+    all_nodes = []
+    cursor = None
+    page = 1
+    variables = variables or {}
+
+    while True:
+        logger.info(f"Fetching page {page} from Linear API ({root_field})...")
+
+        request_vars = {**variables, "after": cursor}
+
+        response = requests.post(
+            LINEAR_API_URL,
+            headers=headers,
+            json={"query": query, "variables": request_vars},
+            timeout=30,
+        )
+        response.raise_for_status()
+
+        data = response.json()
+        if "errors" in data:
+            raise Exception(f"Linear API error: {data['errors']}")
+
+        result = data["data"][root_field]
+        nodes = result["nodes"]
+        all_nodes.extend(nodes)
+
+        logger.info(f"Retrieved {len(nodes)} {root_field} on page {page}")
+
+        if not result["pageInfo"]["hasNextPage"]:
+            break
+
+        cursor = result["pageInfo"]["endCursor"]
+        page += 1
+
+    logger.info(f"Total {root_field} fetched: {len(all_nodes)}")
+    return all_nodes
 
 
 class LinearIssuesSource(Source):
@@ -59,69 +133,22 @@ class LinearIssuesSource(Source):
         bigquery.SchemaField("updated_at", "TIMESTAMP"),
         bigquery.SchemaField("project_name", "STRING"),
         bigquery.SchemaField("labels", "STRING", mode="REPEATED"),
+        bigquery.SchemaField("cycle_id", "STRING"),
     ]
 
     def __init__(self, lookback_days: int = 7):
-        """
-        Args:
-            lookback_days: Fetch issues updated within this many days
-        """
         self.lookback_days = lookback_days
-        self.api_key = os.environ.get("LINEAR_API_KEY")
-        if not self.api_key:
-            raise ValueError("LINEAR_API_KEY environment variable is not set")
 
     def fetch(self) -> list[dict[str, Any]]:
-        """Fetch issues updated within lookback period."""
         since_date = datetime.now(timezone.utc) - timedelta(days=self.lookback_days)
         logger.info(f"Fetching issues updated since {since_date.isoformat()}")
-
-        headers = {
-            "Authorization": self.api_key,
-            "Content-Type": "application/json",
-        }
-
-        all_issues = []
-        cursor = None
-        page = 1
-
-        while True:
-            logger.info(f"Fetching page {page} from Linear API...")
-
-            variables = {
-                "after": cursor,
-                "filter": {"updatedAt": {"gte": since_date.isoformat()}},
-            }
-
-            response = requests.post(
-                LINEAR_API_URL,
-                headers=headers,
-                json={"query": ISSUES_QUERY, "variables": variables},
-                timeout=30,
-            )
-            response.raise_for_status()
-
-            data = response.json()
-            if "errors" in data:
-                raise Exception(f"Linear API error: {data['errors']}")
-
-            issues_data = data["data"]["issues"]
-            nodes = issues_data["nodes"]
-            all_issues.extend(nodes)
-
-            logger.info(f"Retrieved {len(nodes)} issues on page {page}")
-
-            if not issues_data["pageInfo"]["hasNextPage"]:
-                break
-
-            cursor = issues_data["pageInfo"]["endCursor"]
-            page += 1
-
-        logger.info(f"Total issues fetched: {len(all_issues)}")
-        return all_issues
+        return fetch_paginated(
+            ISSUES_QUERY,
+            "issues",
+            {"filter": {"updatedAt": {"gte": since_date.isoformat()}}},
+        )
 
     def transform(self, raw_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Flatten nested Linear API response to BigQuery rows."""
         return [
             {
                 "id": issue["id"],
@@ -134,6 +161,39 @@ class LinearIssuesSource(Source):
                 "updated_at": issue["updatedAt"],
                 "project_name": issue["project"]["name"] if issue["project"] else None,
                 "labels": [label["name"] for label in issue["labels"]["nodes"]],
+                "cycle_id": issue["cycle"]["id"] if issue["cycle"] else None,
             }
             for issue in raw_data
+        ]
+
+
+class LinearCyclesSource(Source):
+    """Fetches cycles from Linear."""
+
+    dataset_id = "linear"
+    table_id = "cycles"
+    primary_key = "id"
+    schema = [
+        bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("number", "INTEGER"),
+        bigquery.SchemaField("name", "STRING"),
+        bigquery.SchemaField("starts_at", "TIMESTAMP"),
+        bigquery.SchemaField("ends_at", "TIMESTAMP"),
+        bigquery.SchemaField("team_name", "STRING"),
+    ]
+
+    def fetch(self) -> list[dict[str, Any]]:
+        return fetch_paginated(CYCLES_QUERY, "cycles")
+
+    def transform(self, raw_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {
+                "id": cycle["id"],
+                "number": cycle["number"],
+                "name": cycle["name"],
+                "starts_at": cycle["startsAt"],
+                "ends_at": cycle["endsAt"],
+                "team_name": cycle["team"]["name"] if cycle["team"] else None,
+            }
+            for cycle in raw_data
         ]
