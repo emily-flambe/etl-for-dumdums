@@ -14,7 +14,7 @@ github-actions-workflows/
 │   └── linear.py
 ├── scripts/              # Thin wrappers that run syncs
 │   └── sync_linear.py
-└── requirements.txt
+└── pyproject.toml
 ```
 
 ## Setup
@@ -22,7 +22,7 @@ github-actions-workflows/
 ### 1. Install dependencies
 
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 ### 2. Configure credentials
@@ -42,7 +42,7 @@ export LINEAR_API_KEY="lin_api_xxxxx"
 export GCP_PROJECT_ID="your-project-id"
 export GCP_SA_KEY="$(base64 -i /path/to/credentials.json | tr -d '\n')"
 
-python scripts/sync_linear.py
+uv run python scripts/sync_linear.py
 ```
 
 ### Scheduled (GitHub Actions)
