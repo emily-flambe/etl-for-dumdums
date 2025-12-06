@@ -1,14 +1,14 @@
-# Local development profile
-# For CI/CD, this is generated from environment variables
+# Local development: uses keyfile path from .env
+# CI/CD: uses service account JSON from secrets
 
 analytics:
   target: dev
   outputs:
     dev:
       type: bigquery
-      method: service-account-json
+      method: service-account
       project: "{{ env_var('GCP_PROJECT_ID') }}"
       dataset: analytics
-      keyfile_json: "{{ env_var('GCP_SA_KEY_JSON') | as_native }}"
+      keyfile: "{{ env_var('GCP_SA_KEY_FILE') }}"
       threads: 4
       timeout_seconds: 300
