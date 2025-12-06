@@ -38,11 +38,16 @@ uv sync
 ### Ad-hoc (local)
 
 ```bash
-export LINEAR_API_KEY="lin_api_xxxxx"
-export GCP_PROJECT_ID="your-project-id"
-export GCP_SA_KEY="$(base64 -i /path/to/credentials.json | tr -d '\n')"
+# First time: copy and fill in .env
+cp .env.example .env
 
+# Then just run
 uv run python scripts/sync_linear.py
+```
+
+To get your `GCP_SA_KEY` value:
+```bash
+base64 -i /path/to/credentials.json | tr -d '\n'
 ```
 
 ### Scheduled (GitHub Actions)
