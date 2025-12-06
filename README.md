@@ -60,7 +60,7 @@ Add secrets in GitHub repo settings (Settings > Secrets and variables > Actions)
 
 Syncs issues from Linear to BigQuery.
 
-- **Schedule**: Daily at 6 AM UTC
+- **Schedule**: Daily at midnight EST (5 AM UTC)
 - **Table**: `raw_data.linear_issues`
 - **Lookback**: 7 days
 - **Mode**: Incremental merge on `id`
