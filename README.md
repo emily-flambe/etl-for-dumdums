@@ -7,8 +7,13 @@ ETL jobs for syncing data from various APIs to BigQuery. Can be run ad-hoc local
 ```
 github-actions-workflows/
 ├── .github/workflows/    # GitHub Actions workflow definitions
-├── lib/                  # Shared utilities (BigQuery client, etc.)
-├── scripts/              # Individual sync scripts
+├── lib/
+│   ├── bigquery.py       # BigQuery client, load, merge utilities
+│   └── source.py         # Base Source class and run_sync()
+├── sources/              # Source implementations (one per API)
+│   └── linear.py
+├── scripts/              # Thin wrappers that run syncs
+│   └── sync_linear.py
 └── requirements.txt
 ```
 
@@ -22,10 +27,11 @@ pip install -r requirements.txt
 
 ### 2. Configure credentials
 
-You need three things:
-- **Linear API key** - from Linear Settings > API > Personal API keys
-- **GCP Project ID** - your Google Cloud project
-- **GCP Service Account** - with BigQuery Data Editor + User roles
+| Variable | Description |
+|----------|-------------|
+| `GCP_PROJECT_ID` | Your Google Cloud project |
+| `GCP_SA_KEY` | Base64-encoded service account JSON |
+| `LINEAR_API_KEY` | Linear API key (for Linear sync) |
 
 ## Running Scripts
 
@@ -41,32 +47,53 @@ python scripts/sync_linear.py
 
 ### Scheduled (GitHub Actions)
 
-Add these secrets in GitHub repo settings (Settings > Secrets and variables > Actions):
+Add secrets in GitHub repo settings (Settings > Secrets and variables > Actions), then workflows run on their defined schedules. Trigger manually via Actions tab > Select workflow > Run workflow.
 
-| Secret | Value |
-|--------|-------|
-| `LINEAR_API_KEY` | Your Linear API key |
-| `GCP_PROJECT_ID` | Your GCP project ID |
-| `GCP_SA_KEY` | Base64-encoded service account JSON |
+## Available Sources
 
-To base64 encode your credentials:
-```bash
-base64 -i credentials.json | tr -d '\n'
-```
+### Linear (`sync_linear.py`)
 
-Workflows run on their defined schedules. To trigger manually: Actions tab > Select workflow > Run workflow.
-
-## Available Scripts
-
-### `sync_linear.py`
-
-Syncs Linear issues to BigQuery.
+Syncs issues from Linear to BigQuery.
 
 - **Schedule**: Daily at 6 AM UTC
 - **Table**: `raw_data.linear_issues`
-- **Lookback**: Issues updated in last 7 days
-- **Mode**: Incremental merge (upsert by `id`)
+- **Lookback**: 7 days
+- **Mode**: Incremental merge on `id`
 
-Uses MERGE to insert new issues and update existing ones. This preserves historical data that Linear's API may no longer return (e.g., old sprint details).
+## Adding a New Source
 
-**Columns**: id, identifier, title, state, assignee, priority, created_at, updated_at, project_name
+1. Create `sources/your_source.py`:
+
+```python
+from lib.source import Source
+
+class YourSource(Source):
+    table_id = "your_table"
+    primary_key = "id"
+    schema = [
+        bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
+        # ... other fields
+    ]
+
+    def __init__(self, ...):
+        # Setup, get API keys from env vars
+
+    def fetch(self) -> list[dict]:
+        # Call API, handle pagination, return raw data
+
+    def transform(self, raw_data) -> list[dict]:
+        # Flatten/convert to match schema
+```
+
+2. Create `scripts/sync_your_source.py`:
+
+```python
+from lib.source import run_sync
+from sources.your_source import YourSource
+
+if __name__ == "__main__":
+    source = YourSource()
+    run_sync(source)
+```
+
+3. Create `.github/workflows/your-source-sync.yml` (copy from `linear-sync.yml`)
