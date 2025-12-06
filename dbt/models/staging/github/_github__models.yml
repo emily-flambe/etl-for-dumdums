@@ -1,0 +1,54 @@
+version: 2
+
+models:
+  - name: stg_github__users
+    description: Staged GitHub users with cleaned column names
+    columns:
+      - name: user_id
+        description: Unique GitHub user identifier
+        tests:
+          - unique
+          - not_null
+      - name: username
+        description: GitHub login/username
+      - name: email
+        description: User email (cross-platform join key)
+
+  - name: stg_github__pull_requests
+    description: Staged GitHub pull requests
+    columns:
+      - name: pull_request_id
+        description: Unique pull request identifier
+        tests:
+          - unique
+          - not_null
+      - name: pr_number
+        description: PR number within repo (e.g., #123)
+      - name: author_id
+        description: FK to stg_github__users
+
+  - name: stg_github__pr_reviews
+    description: Staged GitHub PR reviews
+    columns:
+      - name: review_id
+        description: Unique review identifier
+        tests:
+          - unique
+          - not_null
+      - name: pull_request_id
+        description: FK to stg_github__pull_requests
+      - name: reviewer_id
+        description: FK to stg_github__users
+
+  - name: stg_github__pr_comments
+    description: Staged GitHub PR review comments
+    columns:
+      - name: comment_id
+        description: Unique comment identifier
+        tests:
+          - unique
+          - not_null
+      - name: pull_request_id
+        description: FK to stg_github__pull_requests
+      - name: author_id
+        description: FK to stg_github__users

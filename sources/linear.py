@@ -32,11 +32,13 @@ query GetIssues($after: String, $filter: IssueFilter) {
             state { name }
             assignee { id }
             priority
+            estimate
             createdAt
             updatedAt
             project { name }
             labels { nodes { name } }
             cycle { id }
+            parent { id identifier }
         }
     }
 }
@@ -147,24 +149,32 @@ class LinearIssuesSource(Source):
         bigquery.SchemaField("state", "STRING"),
         bigquery.SchemaField("assignee_id", "STRING"),
         bigquery.SchemaField("priority", "INTEGER"),
+        bigquery.SchemaField("estimate", "FLOAT"),
         bigquery.SchemaField("created_at", "TIMESTAMP"),
         bigquery.SchemaField("updated_at", "TIMESTAMP"),
         bigquery.SchemaField("project_name", "STRING"),
         bigquery.SchemaField("labels", "STRING", mode="REPEATED"),
         bigquery.SchemaField("cycle_id", "STRING"),
+        bigquery.SchemaField("parent_id", "STRING"),
+        bigquery.SchemaField("parent_identifier", "STRING"),
     ]
 
-    def __init__(self, lookback_days: int = 7):
+    def __init__(self, lookback_days: int = 7, full_sync: bool = False):
         self.lookback_days = lookback_days
+        self.full_sync = full_sync
 
     def fetch(self) -> list[dict[str, Any]]:
-        since_date = datetime.now(timezone.utc) - timedelta(days=self.lookback_days)
-        logger.info(f"Fetching issues updated since {since_date.isoformat()}")
-        return fetch_paginated(
-            ISSUES_QUERY,
-            "issues",
-            {"filter": {"updatedAt": {"gte": since_date.isoformat()}}},
-        )
+        if self.full_sync:
+            logger.info("Fetching ALL issues (full sync)")
+            return fetch_paginated(ISSUES_QUERY, "issues")
+        else:
+            since_date = datetime.now(timezone.utc) - timedelta(days=self.lookback_days)
+            logger.info(f"Fetching issues updated since {since_date.isoformat()}")
+            return fetch_paginated(
+                ISSUES_QUERY,
+                "issues",
+                {"filter": {"updatedAt": {"gte": since_date.isoformat()}}},
+            )
 
     def transform(self, raw_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return [
@@ -175,11 +185,14 @@ class LinearIssuesSource(Source):
                 "state": issue["state"]["name"] if issue["state"] else None,
                 "assignee_id": issue["assignee"]["id"] if issue["assignee"] else None,
                 "priority": issue["priority"],
+                "estimate": issue.get("estimate"),
                 "created_at": issue["createdAt"],
                 "updated_at": issue["updatedAt"],
                 "project_name": issue["project"]["name"] if issue["project"] else None,
                 "labels": [label["name"] for label in issue["labels"]["nodes"]],
                 "cycle_id": issue["cycle"]["id"] if issue["cycle"] else None,
+                "parent_id": issue["parent"]["id"] if issue.get("parent") else None,
+                "parent_identifier": issue["parent"]["identifier"] if issue.get("parent") else None,
             }
             for issue in raw_data
         ]

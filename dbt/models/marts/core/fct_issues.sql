@@ -10,6 +10,16 @@ cycles as (
     select * from {{ ref('stg_linear__cycles') }}
 ),
 
+-- Count children for each issue
+child_counts as (
+    select
+        parent_id,
+        count(*) as child_count
+    from issues
+    where parent_id is not null
+    group by parent_id
+),
+
 final as (
     select
         -- Issue attributes
@@ -18,6 +28,7 @@ final as (
         i.title,
         i.state,
         i.priority,
+        i.estimate,
         i.labels,
         i.project_name,
         i.created_at,
@@ -36,6 +47,14 @@ final as (
         c.starts_at as cycle_starts_at,
         c.ends_at as cycle_ends_at,
 
+        -- Parent/child relationship
+        i.parent_id,
+        i.parent_identifier,
+        parent.title as parent_title,
+        i.parent_id is not null as is_child,
+        coalesce(cc.child_count, 0) as child_count,
+        coalesce(cc.child_count, 0) > 0 as is_parent,
+
         -- Derived fields
         case
             when c.cycle_id is not null
@@ -49,6 +68,8 @@ final as (
     from issues i
     left join users u on i.assignee_id = u.user_id
     left join cycles c on i.cycle_id = c.cycle_id
+    left join issues parent on i.parent_id = parent.issue_id
+    left join child_counts cc on i.issue_id = cc.parent_id
 )
 
 select * from final

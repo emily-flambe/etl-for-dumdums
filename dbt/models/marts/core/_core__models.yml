@@ -18,17 +18,42 @@ models:
       - name: cycle_name
         description: Name of the sprint/cycle
 
+  - name: fct_pull_requests
+    description: |
+      Fact table of GitHub pull requests enriched with author details,
+      review statistics, and derived metrics like cycle time.
+    columns:
+      - name: pull_request_id
+        description: Unique pull request identifier
+        tests:
+          - unique
+          - not_null
+      - name: pr_number
+        description: PR number within repo (e.g., #123)
+      - name: author_email
+        description: Email of PR author (cross-platform join key)
+      - name: cycle_time_hours
+        description: Hours from PR open to merge
+      - name: time_to_first_review_hours
+        description: Hours from PR open to first review
+
   - name: dim_users
     description: |
-      User dimension table combining Linear users.
-      Will be extended to include GitHub users via email join.
+      User dimension table combining Linear and GitHub users via email join.
+      Users appearing in both systems are merged into a single record.
     columns:
       - name: user_id
-        description: Linear user ID
+        description: Primary user ID (Linear ID if available, otherwise gh_ prefixed GitHub ID)
         tests:
           - unique
           - not_null
       - name: email
         description: Email address (cross-platform join key)
-        tests:
-          - unique
+      - name: github_username
+        description: GitHub login/username
+      - name: linear_user_id
+        description: Linear user ID (null if user only in GitHub)
+      - name: github_user_id
+        description: GitHub user ID (null if user only in Linear)
+      - name: source
+        description: Where user data comes from (linear, github, or both)

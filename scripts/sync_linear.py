@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Sync Linear data to BigQuery."""
 
+import argparse
 import logging
 import os
 import sys
@@ -21,9 +22,20 @@ logging.basicConfig(
 )
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Sync Linear data to BigQuery")
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Full sync (all issues, not just recent)",
+    )
+    args = parser.parse_args()
+
     # Sync dimension tables first
     run_sync(LinearUsersSource())
     run_sync(LinearCyclesSource())
 
     # Then sync fact table (issues with FKs to users and cycles)
-    run_sync(LinearIssuesSource(lookback_days=7))
+    if args.full:
+        run_sync(LinearIssuesSource(full_sync=True))
+    else:
+        run_sync(LinearIssuesSource(lookback_days=7))

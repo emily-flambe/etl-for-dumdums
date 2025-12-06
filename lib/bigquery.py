@@ -166,11 +166,21 @@ def merge_table(
 
     # Check if target table exists; if not, just do a regular load
     try:
-        client.get_table(table_ref)
+        existing_table = client.get_table(table_ref)
     except NotFound:
         logger.info(f"Table {table_ref} does not exist, creating with initial load")
         load_table(client, table_id, rows, schema, dataset_id, "WRITE_TRUNCATE")
         return
+
+    # Handle schema evolution: add any new columns to existing table
+    existing_cols = {field.name for field in existing_table.schema}
+    new_cols = [field for field in schema if field.name not in existing_cols]
+
+    if new_cols:
+        logger.info(f"Adding {len(new_cols)} new columns to {table_ref}: {[f.name for f in new_cols]}")
+        updated_schema = list(existing_table.schema) + new_cols
+        existing_table.schema = updated_schema
+        client.update_table(existing_table, ["schema"])
 
     # Load data to temp table
     logger.info(f"Loading {len(rows)} rows to temp table {temp_table_ref}...")

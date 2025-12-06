@@ -9,10 +9,13 @@ staged as (
         title,
         state,
         priority,
+        estimate,
         assignee_id,
         cycle_id,
         project_name,
         labels,
+        parent_id,
+        parent_identifier,
         created_at,
         updated_at
     from source

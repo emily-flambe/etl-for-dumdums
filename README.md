@@ -60,8 +60,9 @@ make help           # Show all commands
 make run            # Sync all sources + run dbt
 
 # ETL
-make sync           # Run all syncs
-make sync-linear    # Just Linear
+make sync           # Run all syncs (incremental, last 7 days)
+make sync-linear    # Just Linear (incremental)
+make sync-linear-full  # Full historical sync (first time or backfill)
 
 # dbt
 make dbt            # Build + test

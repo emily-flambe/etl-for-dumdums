@@ -1,0 +1,43 @@
+version: 2
+
+sources:
+  - name: github
+    description: Raw data from GitHub API
+    database: "{{ env_var('GCP_PROJECT_ID') }}"
+    schema: github
+    tables:
+      - name: raw_users
+        description: GitHub organization members (raw ETL data)
+        columns:
+          - name: id
+            description: Unique GitHub user ID
+            tests:
+              - unique
+              - not_null
+
+      - name: raw_pull_requests
+        description: GitHub pull requests (raw ETL data)
+        columns:
+          - name: id
+            description: Unique pull request ID
+            tests:
+              - unique
+              - not_null
+
+      - name: raw_pr_reviews
+        description: GitHub PR reviews (raw ETL data)
+        columns:
+          - name: id
+            description: Unique review ID
+            tests:
+              - unique
+              - not_null
+
+      - name: raw_pr_comments
+        description: GitHub PR review comments (raw ETL data)
+        columns:
+          - name: id
+            description: Unique comment ID
+            tests:
+              - unique
+              - not_null

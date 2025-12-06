@@ -89,6 +89,7 @@ One dataset per source. Raw tables prefixed with `raw_`, dbt models in same data
 | `GCP_SA_KEY` | ETL | Base64-encoded service account JSON |
 | `GCP_SA_KEY_FILE` | dbt | Path to credentials.json file |
 | `LINEAR_API_KEY` | ETL | Linear API key |
+| `GITHUB_TOKEN` | ETL | GitHub PAT with repo and read:org scopes |
 
 ## Common Commands
 
@@ -119,7 +120,9 @@ make help
 
 ## BigQuery Tables
 
-All tables live in the `linear` dataset:
+### Linear Dataset
+
+All Linear tables live in the `linear` dataset:
 
 | Table | Type | Description |
 |-------|------|-------------|
@@ -130,11 +133,23 @@ All tables live in the `linear` dataset:
 | `linear.stg_linear__users` | dbt view | Staged users |
 | `linear.stg_linear__cycles` | dbt view | Staged cycles |
 | `linear.fct_issues` | dbt table | Issues with user/cycle details |
-| `linear.dim_users` | dbt table | User dimension |
+| `linear.dim_users` | dbt table | User dimension (Linear + GitHub joined) |
+
+### GitHub Dataset
+
+| Table | Type | Description |
+|-------|------|-------------|
+| `github.raw_users` | ETL | Org members from GitHub API |
+| `github.raw_pull_requests` | ETL | PRs from configured repos |
+| `github.raw_pr_reviews` | ETL | PR reviews |
+| `github.raw_pr_comments` | ETL | PR review comments |
+| `github.stg_github__*` | dbt view | Staged GitHub tables |
+| `github.fct_pull_requests` | dbt table | PRs with author/review stats |
 
 Temp tables used during ETL merges go to `raw_data` dataset and are cleaned up automatically.
 
 ## Current State
 
 - **Working**: Full pipeline (ETL + dbt) runs via `make run`
-- **Planned**: GitHub source for cross-platform user joins via email
+- **Working**: GitHub source syncs PRs, reviews, comments for demexchange org
+- **Repos synced**: demexchange/ddx-data-pipeline, demexchange/snowflake-queries
