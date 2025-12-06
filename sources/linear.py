@@ -30,7 +30,7 @@ query GetIssues($after: String, $filter: IssueFilter) {
             identifier
             title
             state { name }
-            assignee { name }
+            assignee { id }
             priority
             createdAt
             updatedAt
@@ -56,6 +56,24 @@ query GetCycles($after: String) {
             startsAt
             endsAt
             team { name }
+        }
+    }
+}
+"""
+
+USERS_QUERY = """
+query GetUsers($after: String) {
+    users(first: 100, after: $after) {
+        pageInfo {
+            hasNextPage
+            endCursor
+        }
+        nodes {
+            id
+            email
+            displayName
+            name
+            active
         }
     }
 }
@@ -127,7 +145,7 @@ class LinearIssuesSource(Source):
         bigquery.SchemaField("identifier", "STRING"),
         bigquery.SchemaField("title", "STRING"),
         bigquery.SchemaField("state", "STRING"),
-        bigquery.SchemaField("assignee", "STRING"),
+        bigquery.SchemaField("assignee_id", "STRING"),
         bigquery.SchemaField("priority", "INTEGER"),
         bigquery.SchemaField("created_at", "TIMESTAMP"),
         bigquery.SchemaField("updated_at", "TIMESTAMP"),
@@ -155,7 +173,7 @@ class LinearIssuesSource(Source):
                 "identifier": issue["identifier"],
                 "title": issue["title"],
                 "state": issue["state"]["name"] if issue["state"] else None,
-                "assignee": issue["assignee"]["name"] if issue["assignee"] else None,
+                "assignee_id": issue["assignee"]["id"] if issue["assignee"] else None,
                 "priority": issue["priority"],
                 "created_at": issue["createdAt"],
                 "updated_at": issue["updatedAt"],
@@ -196,4 +214,34 @@ class LinearCyclesSource(Source):
                 "team_name": cycle["team"]["name"] if cycle["team"] else None,
             }
             for cycle in raw_data
+        ]
+
+
+class LinearUsersSource(Source):
+    """Fetches users from Linear."""
+
+    dataset_id = "linear"
+    table_id = "users"
+    primary_key = "id"
+    schema = [
+        bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("email", "STRING"),
+        bigquery.SchemaField("display_name", "STRING"),
+        bigquery.SchemaField("name", "STRING"),
+        bigquery.SchemaField("active", "BOOLEAN"),
+    ]
+
+    def fetch(self) -> list[dict[str, Any]]:
+        return fetch_paginated(USERS_QUERY, "users")
+
+    def transform(self, raw_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {
+                "id": user["id"],
+                "email": user["email"],
+                "display_name": user["displayName"],
+                "name": user["name"],
+                "active": user["active"],
+            }
+            for user in raw_data
         ]

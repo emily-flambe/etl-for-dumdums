@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from lib.source import run_sync
-from sources.linear import LinearCyclesSource, LinearIssuesSource
+from sources.linear import LinearCyclesSource, LinearIssuesSource, LinearUsersSource
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,8 +21,9 @@ logging.basicConfig(
 )
 
 if __name__ == "__main__":
-    # Sync cycles first (dimension table)
+    # Sync dimension tables first
+    run_sync(LinearUsersSource())
     run_sync(LinearCyclesSource())
 
-    # Then sync issues (fact table with cycle_id FK)
+    # Then sync fact table (issues with FKs to users and cycles)
     run_sync(LinearIssuesSource(lookback_days=7))

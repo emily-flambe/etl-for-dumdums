@@ -58,7 +58,7 @@ Add secrets in GitHub repo settings (Settings > Secrets and variables > Actions)
 
 ### Linear (`sync_linear.py`)
 
-Syncs issues and cycles from Linear to BigQuery.
+Syncs issues, cycles, and users from Linear to BigQuery.
 
 - **Schedule**: Daily at midnight EST (5 AM UTC)
 - **Mode**: Incremental merge on `id`
@@ -67,8 +67,9 @@ Syncs issues and cycles from Linear to BigQuery.
 
 | Table | Description |
 |-------|-------------|
+| `linear.users` | User dimension table (id, email, display_name, name, active) |
 | `linear.cycles` | Cycle/sprint dimension table (all cycles) |
-| `linear.issues` | Issue fact table with `cycle_id` FK (last 7 days) |
+| `linear.issues` | Issue fact table with `assignee_id` and `cycle_id` FKs |
 
 **Join for analysis:**
 ```sql
@@ -76,11 +77,24 @@ SELECT
   i.identifier,
   i.title,
   i.state,
+  u.display_name AS assignee,
+  u.email AS assignee_email,
   c.name AS cycle_name,
   c.starts_at,
   c.ends_at
 FROM linear.issues i
+LEFT JOIN linear.users u ON i.assignee_id = u.id
 LEFT JOIN linear.cycles c ON i.cycle_id = c.id
+```
+
+**Cross-platform join (Linear + GitHub) via email:**
+```sql
+SELECT
+  lu.email,
+  lu.display_name AS linear_name,
+  -- gu.login AS github_username  -- when github.users exists
+FROM linear.users lu
+-- JOIN github.users gu ON lu.email = gu.email
 ```
 
 ## Adding a New Source
