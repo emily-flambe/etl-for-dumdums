@@ -154,11 +154,15 @@ def merge_table(
 
     project_id = os.environ.get("GCP_PROJECT_ID")
     table_ref = f"{project_id}.{dataset_id}.{table_id}"
-    temp_table_id = f"{table_id}_temp_{uuid.uuid4().hex[:8]}"
-    temp_table_ref = f"{project_id}.{dataset_id}.{temp_table_id}"
 
-    # Ensure dataset exists
+    # Temp tables go to raw_data dataset to keep source datasets clean
+    temp_dataset = "raw_data"
+    temp_table_id = f"temp_{table_id}_{uuid.uuid4().hex[:8]}"
+    temp_table_ref = f"{project_id}.{temp_dataset}.{temp_table_id}"
+
+    # Ensure both datasets exist
     ensure_dataset_exists(client, dataset_id)
+    ensure_dataset_exists(client, temp_dataset)
 
     # Check if target table exists; if not, just do a regular load
     try:

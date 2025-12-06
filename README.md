@@ -2,13 +2,27 @@
 
 ETL jobs for syncing data from various APIs to BigQuery, with dbt for transformations.
 
+## Quick Start
+
+```bash
+# Install dependencies
+uv sync
+
+# Copy and fill in .env
+cp .env.example .env
+
+# Run full pipeline
+make run
+```
+
 ## Project Structure
 
 ```
 github-actions-workflows/
+├── Makefile                  # make run, make dbt, make dbt-compile, etc.
 ├── .github/workflows/
 │   ├── linear-sync.yml       # ETL: Linear API -> BigQuery
-│   └── dbt-run.yml           # Transform: raw -> analytics
+│   └── dbt-run.yml           # Transform: runs after ETL completes
 ├── lib/                      # Shared Python utilities
 │   ├── bigquery.py
 │   └── source.py
@@ -18,10 +32,8 @@ github-actions-workflows/
 │   └── sync_linear.py
 ├── dbt/                      # dbt transformation layer
 │   ├── models/
-│   │   ├── staging/          # 1:1 with raw tables
-│   │   │   └── linear/
-│   │   └── marts/            # Analytics-ready tables
-│   │       └── core/
+│   │   ├── staging/linear/   # 1:1 with raw tables
+│   │   └── marts/core/       # Analytics-ready tables
 │   ├── dbt_project.yml
 │   └── profiles.yml
 └── pyproject.toml
@@ -32,104 +44,75 @@ github-actions-workflows/
 ```
 APIs (Linear, GitHub, ...)
     ↓ ETL scripts (Python)
-BigQuery raw tables (linear.issues, linear.users, ...)
+BigQuery raw tables (linear.raw_issues, linear.raw_users, ...)
     ↓ dbt models
-BigQuery analytics tables (analytics.fct_issues, analytics.dim_users, ...)
+BigQuery analytics tables (linear.fct_issues, linear.dim_users, ...)
 ```
 
-## Setup
+One dataset per source. All tables (raw + dbt) live in the same dataset.
+
+## Commands
 
 ```bash
-# Install dependencies
-uv sync
+make help           # Show all commands
 
-# Copy and fill in .env
-cp .env.example .env
-```
+# Full pipeline
+make run            # Sync all sources + run dbt
 
-## Running Locally
+# ETL
+make sync           # Run all syncs
+make sync-linear    # Just Linear
 
-### ETL (sync raw data)
-
-```bash
-uv run python scripts/sync_linear.py
-```
-
-### dbt (transform to analytics)
-
-```bash
-cd dbt
-uv run dbt build --profiles-dir .
+# dbt
+make dbt            # Build + test
+make dbt-run        # Run models only
+make dbt-test       # Test only
+make dbt-compile    # Compile only
+make dbt-docs       # Generate docs
+make dbt-docs-serve # Serve docs locally
 ```
 
 ## GitHub Actions
 
 Workflows run automatically:
-- `linear-sync.yml`: Daily at midnight EST
+- `linear-sync.yml`: Daily at 5 AM UTC
 - `dbt-run.yml`: Triggers after linear-sync completes
 
 Required secrets:
 - `GCP_PROJECT_ID`
-- `GCP_SA_KEY` (base64-encoded)
+- `GCP_SA_KEY` (base64-encoded service account JSON)
 - `LINEAR_API_KEY`
 
----
+## BigQuery Tables
 
-## ETL Sources
+All tables in the `linear` dataset:
 
-### Linear
+| Table | Type | Description |
+|-------|------|-------------|
+| `raw_issues` | ETL | Raw issues from Linear API |
+| `raw_users` | ETL | Raw users |
+| `raw_cycles` | ETL | Raw cycles/sprints |
+| `stg_linear__*` | dbt view | Staged/cleaned data |
+| `fct_issues` | dbt table | Issues with user/cycle details |
+| `dim_users` | dbt table | User dimension |
 
-Syncs to `linear.*` dataset:
-
-| Table | Description |
-|-------|-------------|
-| `linear.users` | User dimension (id, email, display_name) |
-| `linear.cycles` | Cycle/sprint dimension |
-| `linear.issues` | Issues with `assignee_id`, `cycle_id` FKs |
-
----
-
-## dbt Models
-
-### Staging (`models/staging/`)
-
-Views that clean and rename raw source columns. One folder per source.
-
-```
-staging/
-└── linear/
-    ├── stg_linear__issues.sql
-    ├── stg_linear__users.sql
-    └── stg_linear__cycles.sql
-```
-
-### Marts (`models/marts/`)
-
-Analytics-ready tables joining multiple sources.
-
-| Model | Description |
-|-------|-------------|
-| `fct_issues` | Issues enriched with user and cycle details |
-| `dim_users` | User dimension (will include GitHub when added) |
-
-**Query the marts:**
+**Example query:**
 ```sql
 SELECT
   identifier,
   title,
   state,
   assignee_name,
-  assignee_email,
   cycle_name,
   days_since_created
-FROM analytics.fct_issues
+FROM linear.fct_issues
 WHERE is_in_active_cycle = true
 ```
 
----
-
 ## Adding a New Source
 
-1. **ETL**: Create `sources/new_source.py` and `scripts/sync_new_source.py`
-2. **Staging**: Create `dbt/models/staging/new_source/` with source definition and `stg_*` models
-3. **Marts**: Update mart models to join new source data
+1. **ETL**: Create `sources/new_source.py` with classes extending `Source`, and `scripts/sync_new_source.py`
+2. **Makefile**: Add `sync-new_source` target, add to `sync:` dependencies
+3. **dbt**: Create `dbt/models/staging/new_source/` with source definition and `stg_*` models
+4. **Marts**: Update mart models to join new source data
+5. **Workflow**: Add `.github/workflows/new_source-sync.yml`

@@ -1,5 +1,5 @@
 with source as (
-    select * from {{ source('linear', 'cycles') }}
+    select * from {{ source('linear', 'raw_cycles') }}
 ),
 
 staged as (

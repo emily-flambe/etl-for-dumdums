@@ -6,8 +6,8 @@ sources:
     database: "{{ env_var('GCP_PROJECT_ID') }}"
     schema: linear
     tables:
-      - name: issues
-        description: Linear issues
+      - name: raw_issues
+        description: Linear issues (raw ETL data)
         columns:
           - name: id
             description: Unique issue ID
@@ -15,8 +15,8 @@ sources:
               - unique
               - not_null
 
-      - name: users
-        description: Linear users
+      - name: raw_users
+        description: Linear users (raw ETL data)
         columns:
           - name: id
             description: Unique user ID
@@ -26,8 +26,8 @@ sources:
           - name: email
             description: User email (join key for cross-platform)
 
-      - name: cycles
-        description: Linear cycles (sprints)
+      - name: raw_cycles
+        description: Linear cycles/sprints (raw ETL data)
         columns:
           - name: id
             description: Unique cycle ID

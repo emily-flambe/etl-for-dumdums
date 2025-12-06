@@ -138,7 +138,7 @@ class LinearIssuesSource(Source):
     """Fetches issues from Linear."""
 
     dataset_id = "linear"
-    table_id = "issues"
+    table_id = "raw_issues"
     primary_key = "id"
     schema = [
         bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
@@ -189,7 +189,7 @@ class LinearCyclesSource(Source):
     """Fetches cycles from Linear."""
 
     dataset_id = "linear"
-    table_id = "cycles"
+    table_id = "raw_cycles"
     primary_key = "id"
     schema = [
         bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
@@ -221,7 +221,7 @@ class LinearUsersSource(Source):
     """Fetches users from Linear."""
 
     dataset_id = "linear"
-    table_id = "users"
+    table_id = "raw_users"
     primary_key = "id"
     schema = [
         bigquery.SchemaField("id", "STRING", mode="REQUIRED"),

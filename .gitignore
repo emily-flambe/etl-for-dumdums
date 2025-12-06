@@ -1,6 +1,12 @@
 # Environment
 .env
 
+# Secrets (service account keys, etc.)
+.secrets/
+
+# dbt local files
+dbt/.user.yml
+
 # Python
 __pycache__/
 *.py[cod]
