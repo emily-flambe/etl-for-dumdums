@@ -1,137 +1,135 @@
 # GitHub Actions Workflows
 
-ETL jobs for syncing data from various APIs to BigQuery. Can be run ad-hoc locally or on a schedule via GitHub Actions.
+ETL jobs for syncing data from various APIs to BigQuery, with dbt for transformations.
 
 ## Project Structure
 
 ```
 github-actions-workflows/
-├── .github/workflows/    # GitHub Actions workflow definitions
-├── lib/
-│   ├── bigquery.py       # BigQuery client, load, merge utilities
-│   └── source.py         # Base Source class and run_sync()
-├── sources/              # Source implementations (one per API)
+├── .github/workflows/
+│   ├── linear-sync.yml       # ETL: Linear API -> BigQuery
+│   └── dbt-run.yml           # Transform: raw -> analytics
+├── lib/                      # Shared Python utilities
+│   ├── bigquery.py
+│   └── source.py
+├── sources/                  # ETL source implementations
 │   └── linear.py
-├── scripts/              # Thin wrappers that run syncs
+├── scripts/                  # ETL entry points
 │   └── sync_linear.py
+├── dbt/                      # dbt transformation layer
+│   ├── models/
+│   │   ├── staging/          # 1:1 with raw tables
+│   │   │   └── linear/
+│   │   └── marts/            # Analytics-ready tables
+│   │       └── core/
+│   ├── dbt_project.yml
+│   └── profiles.yml
 └── pyproject.toml
+```
+
+## Data Flow
+
+```
+APIs (Linear, GitHub, ...)
+    ↓ ETL scripts (Python)
+BigQuery raw tables (linear.issues, linear.users, ...)
+    ↓ dbt models
+BigQuery analytics tables (analytics.fct_issues, analytics.dim_users, ...)
 ```
 
 ## Setup
 
-### 1. Install dependencies
-
 ```bash
+# Install dependencies
 uv sync
+
+# Copy and fill in .env
+cp .env.example .env
 ```
 
-### 2. Configure credentials
+## Running Locally
 
-| Variable | Description |
-|----------|-------------|
-| `GCP_PROJECT_ID` | Your Google Cloud project |
-| `GCP_SA_KEY` | Base64-encoded service account JSON |
-| `LINEAR_API_KEY` | Linear API key (for Linear sync) |
-
-## Running Scripts
-
-### Ad-hoc (local)
+### ETL (sync raw data)
 
 ```bash
-# First time: copy and fill in .env
-cp .env.example .env
-
-# Then just run
 uv run python scripts/sync_linear.py
 ```
 
-To get your `GCP_SA_KEY` value:
+### dbt (transform to analytics)
+
 ```bash
-base64 -i /path/to/credentials.json | tr -d '\n'
+cd dbt
+uv run dbt build --profiles-dir .
 ```
 
-### Scheduled (GitHub Actions)
+## GitHub Actions
 
-Add secrets in GitHub repo settings (Settings > Secrets and variables > Actions), then workflows run on their defined schedules. Trigger manually via Actions tab > Select workflow > Run workflow.
+Workflows run automatically:
+- `linear-sync.yml`: Daily at midnight EST
+- `dbt-run.yml`: Triggers after linear-sync completes
 
-## Available Sources
+Required secrets:
+- `GCP_PROJECT_ID`
+- `GCP_SA_KEY` (base64-encoded)
+- `LINEAR_API_KEY`
 
-### Linear (`sync_linear.py`)
+---
 
-Syncs issues, cycles, and users from Linear to BigQuery.
+## ETL Sources
 
-- **Schedule**: Daily at midnight EST (5 AM UTC)
-- **Mode**: Incremental merge on `id`
+### Linear
 
-**Tables:**
+Syncs to `linear.*` dataset:
 
 | Table | Description |
 |-------|-------------|
-| `linear.users` | User dimension table (id, email, display_name, name, active) |
-| `linear.cycles` | Cycle/sprint dimension table (all cycles) |
-| `linear.issues` | Issue fact table with `assignee_id` and `cycle_id` FKs |
+| `linear.users` | User dimension (id, email, display_name) |
+| `linear.cycles` | Cycle/sprint dimension |
+| `linear.issues` | Issues with `assignee_id`, `cycle_id` FKs |
 
-**Join for analysis:**
-```sql
-SELECT
-  i.identifier,
-  i.title,
-  i.state,
-  u.display_name AS assignee,
-  u.email AS assignee_email,
-  c.name AS cycle_name,
-  c.starts_at,
-  c.ends_at
-FROM linear.issues i
-LEFT JOIN linear.users u ON i.assignee_id = u.id
-LEFT JOIN linear.cycles c ON i.cycle_id = c.id
+---
+
+## dbt Models
+
+### Staging (`models/staging/`)
+
+Views that clean and rename raw source columns. One folder per source.
+
+```
+staging/
+└── linear/
+    ├── stg_linear__issues.sql
+    ├── stg_linear__users.sql
+    └── stg_linear__cycles.sql
 ```
 
-**Cross-platform join (Linear + GitHub) via email:**
+### Marts (`models/marts/`)
+
+Analytics-ready tables joining multiple sources.
+
+| Model | Description |
+|-------|-------------|
+| `fct_issues` | Issues enriched with user and cycle details |
+| `dim_users` | User dimension (will include GitHub when added) |
+
+**Query the marts:**
 ```sql
 SELECT
-  lu.email,
-  lu.display_name AS linear_name,
-  -- gu.login AS github_username  -- when github.users exists
-FROM linear.users lu
--- JOIN github.users gu ON lu.email = gu.email
+  identifier,
+  title,
+  state,
+  assignee_name,
+  assignee_email,
+  cycle_name,
+  days_since_created
+FROM analytics.fct_issues
+WHERE is_in_active_cycle = true
 ```
+
+---
 
 ## Adding a New Source
 
-1. Create `sources/your_source.py`:
-
-```python
-from lib.source import Source
-
-class YourSource(Source):
-    dataset_id = "your_source"  # Creates dataset if not exists
-    table_id = "your_table"
-    primary_key = "id"
-    schema = [
-        bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
-        # ... other fields
-    ]
-
-    def __init__(self, ...):
-        # Setup, get API keys from env vars
-
-    def fetch(self) -> list[dict]:
-        # Call API, handle pagination, return raw data
-
-    def transform(self, raw_data) -> list[dict]:
-        # Flatten/convert to match schema
-```
-
-2. Create `scripts/sync_your_source.py`:
-
-```python
-from lib.source import run_sync
-from sources.your_source import YourSource
-
-if __name__ == "__main__":
-    source = YourSource()
-    run_sync(source)
-```
-
-3. Create `.github/workflows/your-source-sync.yml` (copy from `linear-sync.yml`)
+1. **ETL**: Create `sources/new_source.py` and `scripts/sync_new_source.py`
+2. **Staging**: Create `dbt/models/staging/new_source/` with source definition and `stg_*` models
+3. **Marts**: Update mart models to join new source data

@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "ETL jobs for syncing data from various APIs to BigQuery"
 requires-python = ">=3.11"
 dependencies = [
+    "dbt-bigquery>=1.9.0",
     "google-cloud-bigquery>=3.0.0",
     "python-dotenv>=1.0.0",
     "requests>=2.28.0",

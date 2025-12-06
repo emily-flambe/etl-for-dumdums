@@ -1,0 +1,36 @@
+version: 2
+
+sources:
+  - name: linear
+    description: Raw data from Linear API
+    database: "{{ env_var('GCP_PROJECT_ID') }}"
+    schema: linear
+    tables:
+      - name: issues
+        description: Linear issues
+        columns:
+          - name: id
+            description: Unique issue ID
+            tests:
+              - unique
+              - not_null
+
+      - name: users
+        description: Linear users
+        columns:
+          - name: id
+            description: Unique user ID
+            tests:
+              - unique
+              - not_null
+          - name: email
+            description: User email (join key for cross-platform)
+
+      - name: cycles
+        description: Linear cycles (sprints)
+        columns:
+          - name: id
+            description: Unique cycle ID
+            tests:
+              - unique
+              - not_null

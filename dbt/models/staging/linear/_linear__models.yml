@@ -1,0 +1,37 @@
+version: 2
+
+models:
+  - name: stg_linear__issues
+    description: Staged Linear issues with cleaned column names
+    columns:
+      - name: issue_id
+        description: Unique issue identifier
+        tests:
+          - unique
+          - not_null
+      - name: identifier
+        description: Human-readable issue ID (e.g., ENG-123)
+      - name: assignee_id
+        description: FK to stg_linear__users
+      - name: cycle_id
+        description: FK to stg_linear__cycles
+
+  - name: stg_linear__users
+    description: Staged Linear users
+    columns:
+      - name: user_id
+        description: Unique user identifier
+        tests:
+          - unique
+          - not_null
+      - name: email
+        description: User email (cross-platform join key)
+
+  - name: stg_linear__cycles
+    description: Staged Linear cycles/sprints
+    columns:
+      - name: cycle_id
+        description: Unique cycle identifier
+        tests:
+          - unique
+          - not_null

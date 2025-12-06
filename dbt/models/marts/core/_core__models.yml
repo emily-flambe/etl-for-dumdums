@@ -1,0 +1,34 @@
+version: 2
+
+models:
+  - name: fct_issues
+    description: |
+      Fact table of Linear issues enriched with user and cycle details.
+      This is the primary table for issue-level analytics.
+    columns:
+      - name: issue_id
+        description: Unique issue identifier
+        tests:
+          - unique
+          - not_null
+      - name: identifier
+        description: Human-readable issue ID (e.g., ENG-123)
+      - name: assignee_email
+        description: Email of assigned user (cross-platform join key)
+      - name: cycle_name
+        description: Name of the sprint/cycle
+
+  - name: dim_users
+    description: |
+      User dimension table combining Linear users.
+      Will be extended to include GitHub users via email join.
+    columns:
+      - name: user_id
+        description: Linear user ID
+        tests:
+          - unique
+          - not_null
+      - name: email
+        description: Email address (cross-platform join key)
+        tests:
+          - unique
