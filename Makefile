@@ -6,7 +6,8 @@ endif
 
 .PHONY: help run sync sync-linear \
         dbt dbt-run dbt-test dbt-compile dbt-debug dbt-deps dbt-clean \
-        dbt-docs dbt-docs-serve dbt-seed dbt-snapshot
+        dbt-docs dbt-docs-serve dbt-seed dbt-snapshot \
+        app
 
 # Default target
 help:
@@ -27,6 +28,9 @@ help:
 	@echo "  make dbt-docs       - Generate documentation"
 	@echo "  make dbt-docs-serve - Serve docs locally"
 	@echo "  make dbt-clean      - Clean artifacts"
+	@echo ""
+	@echo "App:"
+	@echo "  make app            - Run Streamlit dashboard"
 
 # ---------- Syncs ----------
 
@@ -77,3 +81,8 @@ dbt-clean:
 # ---------- Full pipeline ----------
 
 run: sync dbt
+
+# ---------- Streamlit app ----------
+
+app:
+	uv run streamlit run app.py
