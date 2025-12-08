@@ -8,7 +8,7 @@ analytics:
       type: bigquery
       method: service-account
       project: "{{ env_var('GCP_PROJECT_ID') }}"
-      dataset: linear
+      dataset: dbt_default
       keyfile: "{{ env_var('GCP_SA_KEY_FILE') }}"
       threads: 4
       timeout_seconds: 300

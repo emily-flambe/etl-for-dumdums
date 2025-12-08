@@ -3,18 +3,14 @@
 
 import argparse
 import logging
-import os
-import sys
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# Load .env for local development (no-op if not present)
 from dotenv import load_dotenv
-load_dotenv()
 
 from lib.source import run_sync
-from sources.oura import OuraSleepSource, OuraReadinessSource, OuraActivitySource
+from sources.oura import OuraActivitySource, OuraReadinessSource, OuraSleepSource
+
+# Load .env for local development (no-op if not present)
+load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,

@@ -8,7 +8,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from app_data import load_oura_daily
+from data import load_oura_daily
 
 st.set_page_config(page_title="Oura Wellness", layout="wide")
 st.title("Oura Wellness")
@@ -94,13 +94,13 @@ chart_df["Metric"] = chart_df["Metric"].map({
 })
 
 line_chart = alt.Chart(chart_df).mark_line(point=True).encode(
-    x=alt.X("day:T", title="Date"),
+    x=alt.X("day:T", title="Date", axis=alt.Axis(format="%b %d", values=filtered["day"].tolist())),
     y=alt.Y("Score:Q", scale=alt.Scale(domain=[0, 100])),
     color=alt.Color("Metric:N", scale=alt.Scale(
         domain=["Sleep", "Readiness", "Activity"],
         range=["#6366f1", "#22c55e", "#f59e0b"]
     )),
-    tooltip=["day:T", "Metric:N", "Score:Q"],
+    tooltip=[alt.Tooltip("day:T", format="%b %d, %Y"), "Metric:N", "Score:Q"],
 ).properties(height=300)
 
 st.altair_chart(line_chart, use_container_width=True)
@@ -114,13 +114,13 @@ filtered["steps_color"] = filtered["steps"].apply(
 )
 
 steps_chart = alt.Chart(filtered).mark_bar().encode(
-    x=alt.X("day:T", title="Date"),
+    x=alt.X("day:T", title="Date", axis=alt.Axis(format="%b %d", values=filtered["day"].tolist())),
     y=alt.Y("steps:Q", title="Steps"),
     color=alt.Color("steps_color:N", scale=alt.Scale(
         domain=["10k+", "7.5k+", "<7.5k"],
         range=["#22c55e", "#f59e0b", "#ef4444"]
     ), legend=alt.Legend(title="Steps")),
-    tooltip=["day:T", "steps:Q", "activity_category:N"],
+    tooltip=[alt.Tooltip("day:T", format="%b %d, %Y"), "steps:Q", "activity_category:N"],
 ).properties(height=250)
 
 # Add 10k goal line
@@ -130,6 +130,38 @@ goal_line = alt.Chart(pd.DataFrame({"y": [10000]})).mark_rule(
 
 st.altair_chart(steps_chart + goal_line, use_container_width=True)
 
+# Body temperature deviation chart
+st.subheader("Body Temperature Deviation")
+
+temp_data = filtered[filtered["temperature_deviation"].notna()].copy()
+if len(temp_data) > 0:
+    # Add color category for temperature
+    temp_data["temp_color"] = temp_data["temperature_deviation"].apply(
+        lambda x: "elevated" if x > 0.5 else ("warm" if x > 0 else ("cool" if x > -0.5 else "low"))
+    )
+
+    temp_chart = alt.Chart(temp_data).mark_bar().encode(
+        x=alt.X("day:T", title="Date", axis=alt.Axis(format="%b %d", values=temp_data["day"].tolist())),
+        y=alt.Y("temperature_deviation:Q", title="Deviation from Baseline (C)"),
+        color=alt.Color("temp_color:N", scale=alt.Scale(
+            domain=["elevated", "warm", "cool", "low"],
+            range=["#ef4444", "#f59e0b", "#3b82f6", "#6366f1"]
+        ), legend=alt.Legend(title="Temp")),
+        tooltip=[
+            alt.Tooltip("day:T", title="Date", format="%b %d, %Y"),
+            alt.Tooltip("temperature_deviation:Q", title="Deviation", format="+.2f"),
+        ],
+    ).properties(height=200)
+
+    # Add baseline at 0
+    baseline = alt.Chart(pd.DataFrame({"y": [0]})).mark_rule(
+        strokeDash=[5, 5], color="gray"
+    ).encode(y="y:Q")
+
+    st.altair_chart(temp_chart + baseline, use_container_width=True)
+else:
+    st.info("No temperature data available for selected period")
+
 # Distribution charts
 st.subheader("Score Distributions")
 col1, col2, col3 = st.columns(3)
@@ -138,42 +170,45 @@ with col1:
     st.write("**Sleep Categories**")
     sleep_dist = filtered["sleep_category"].value_counts().reset_index()
     sleep_dist.columns = ["Category", "Count"]
-    sleep_chart = alt.Chart(sleep_dist).mark_arc().encode(
-        theta="Count:Q",
+    sleep_chart = alt.Chart(sleep_dist).mark_bar().encode(
+        x=alt.X("Count:Q", title="Days"),
+        y=alt.Y("Category:N", sort=["excellent", "good", "fair", "poor"], title=None),
         color=alt.Color("Category:N", scale=alt.Scale(
             domain=["excellent", "good", "fair", "poor"],
             range=["#22c55e", "#84cc16", "#f59e0b", "#ef4444"]
-        )),
+        ), legend=None),
         tooltip=["Category:N", "Count:Q"],
-    ).properties(height=200)
+    ).properties(height=150)
     st.altair_chart(sleep_chart, use_container_width=True)
 
 with col2:
     st.write("**Readiness Categories**")
     readiness_dist = filtered["readiness_category"].value_counts().reset_index()
     readiness_dist.columns = ["Category", "Count"]
-    readiness_chart = alt.Chart(readiness_dist).mark_arc().encode(
-        theta="Count:Q",
+    readiness_chart = alt.Chart(readiness_dist).mark_bar().encode(
+        x=alt.X("Count:Q", title="Days"),
+        y=alt.Y("Category:N", sort=["optimal", "good", "fair", "poor"], title=None),
         color=alt.Color("Category:N", scale=alt.Scale(
             domain=["optimal", "good", "fair", "poor"],
             range=["#22c55e", "#84cc16", "#f59e0b", "#ef4444"]
-        )),
+        ), legend=None),
         tooltip=["Category:N", "Count:Q"],
-    ).properties(height=200)
+    ).properties(height=150)
     st.altair_chart(readiness_chart, use_container_width=True)
 
 with col3:
     st.write("**Activity Categories**")
     activity_dist = filtered["activity_category"].value_counts().reset_index()
     activity_dist.columns = ["Category", "Count"]
-    activity_chart = alt.Chart(activity_dist).mark_arc().encode(
-        theta="Count:Q",
+    activity_chart = alt.Chart(activity_dist).mark_bar().encode(
+        x=alt.X("Count:Q", title="Days"),
+        y=alt.Y("Category:N", sort=["very_active", "active", "moderate", "sedentary"], title=None),
         color=alt.Color("Category:N", scale=alt.Scale(
             domain=["very_active", "active", "moderate", "sedentary"],
             range=["#22c55e", "#84cc16", "#f59e0b", "#ef4444"]
-        )),
+        ), legend=None),
         tooltip=["Category:N", "Count:Q"],
-    ).properties(height=200)
+    ).properties(height=150)
     st.altair_chart(activity_chart, use_container_width=True)
 
 # Data table

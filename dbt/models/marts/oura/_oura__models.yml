@@ -6,6 +6,7 @@ models:
       Daily wellness metrics combining sleep, readiness, and activity data from Oura Ring.
       One row per day with scores and derived categories.
     config:
+      schema: oura
       tags: ['oura']
     columns:
       - name: day

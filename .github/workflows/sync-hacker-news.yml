@@ -1,0 +1,70 @@
+name: Hacker News Pipeline
+
+on:
+  schedule:
+    # Run daily at 5 AM UTC (midnight EST)
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+    inputs:
+      full_sync:
+        description: 'Full sync (5 years, not just recent 30 days)'
+        type: boolean
+        default: false
+
+jobs:
+  sync:
+    name: Sync Hacker News
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run Hacker News sync
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: |
+          if [ "${{ inputs.full_sync }}" = "true" ]; then
+            uv run python scripts/sync_hacker_news.py --full
+          else
+            uv run python scripts/sync_hacker_news.py
+          fi
+
+  dbt:
+    name: dbt Hacker News Models
+    runs-on: ubuntu-latest
+    needs: sync
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Write GCP credentials to file
+        run: |
+          echo "${{ secrets.GCP_SA_KEY }}" | base64 -d > /tmp/gcp-key.json
+
+      - name: Run dbt build for Hacker News
+        working-directory: dbt
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_SA_KEY_FILE: /tmp/gcp-key.json
+        run: uv run dbt build --profiles-dir . --select tag:hacker_news

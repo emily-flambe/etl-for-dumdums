@@ -6,6 +6,7 @@ models:
       Fact table of Linear issues enriched with user and cycle details.
       This is the primary table for issue-level analytics.
     config:
+      schema: linear
       tags: ['linear']
     columns:
       - name: issue_id

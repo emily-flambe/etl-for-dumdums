@@ -1,0 +1,64 @@
+version: 2
+
+models:
+  - name: stg_hn__stories
+    description: Staged Hacker News stories with cleaned column names
+    config:
+      schema: hacker_news
+      tags: ['hacker_news']
+    columns:
+      - name: story_id
+        description: Unique story identifier
+        tests:
+          - unique
+          - not_null
+      - name: title
+        description: Story title
+      - name: url
+        description: Link URL (null for text posts)
+      - name: domain
+        description: Extracted domain from URL
+      - name: author
+        description: Username who posted
+      - name: score
+        description: Upvote count
+      - name: comment_count
+        description: Number of comments
+      - name: posted_at
+        description: When the story was posted
+      - name: posted_date
+        description: Date the story was posted
+      - name: posted_week
+        description: Week the story was posted (Monday start)
+
+  - name: stg_hn__comments
+    description: Staged Hacker News comments with pre-computed sentiment from Cloudflare Workers AI
+    config:
+      schema: hacker_news
+      tags: ['hacker_news']
+    columns:
+      - name: comment_id
+        description: Unique comment identifier
+        tests:
+          - unique
+          - not_null
+      - name: parent_id
+        description: Parent item ID (story for top-level comments)
+      - name: story_id
+        description: Root story ID that this comment belongs to
+      - name: author
+        description: Username who posted the comment
+      - name: comment_text
+        description: Original comment text (may contain HTML)
+      - name: comment_text_clean
+        description: Cleaned comment text with HTML removed
+      - name: posted_at
+        description: When the comment was posted
+      - name: posted_month
+        description: Month the comment was posted (for aggregation)
+      - name: sentiment_score
+        description: Sentiment score from -1 (negative) to 1 (positive)
+      - name: sentiment_label
+        description: Raw label from model (POSITIVE/NEGATIVE)
+      - name: sentiment_category
+        description: Categorized sentiment (positive/negative/neutral)

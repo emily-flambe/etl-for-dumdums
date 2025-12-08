@@ -58,7 +58,7 @@ def load_pull_requests():
     client = get_client()
     query = """
     SELECT *
-    FROM linear.fct_pull_requests
+    FROM github.fct_pull_requests
     ORDER BY created_at DESC
     """
     return client.query(query).to_dataframe()
@@ -70,7 +70,7 @@ def load_oura_daily():
     client = get_client()
     query = """
     SELECT *
-    FROM linear.fct_oura_daily
+    FROM oura.fct_oura_daily
     ORDER BY day DESC
     """
     return client.query(query).to_dataframe()
@@ -84,5 +84,65 @@ def load_reviewer_activity():
     SELECT *
     FROM github.fct_reviewer_activity
     ORDER BY pr_created_at DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_hn_weekly_stats():
+    """Load Hacker News weekly statistics from BigQuery."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM hacker_news.fct_hn_weekly_stats
+    ORDER BY week DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_hn_domain_stats():
+    """Load Hacker News domain statistics from BigQuery."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM hacker_news.fct_hn_domain_stats
+    ORDER BY week DESC, story_count DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_hn_keyword_trends():
+    """Load Hacker News keyword trends from BigQuery."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM hacker_news.fct_hn_keyword_trends
+    ORDER BY week DESC, mention_count DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_keyword_trends():
+    """Load Google Trends keyword interest data from BigQuery."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM trends.fct_keyword_trends
+    ORDER BY date DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_hn_keyword_sentiment():
+    """Load Hacker News keyword sentiment trends from BigQuery."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM hacker_news.fct_hn_keyword_sentiment
+    ORDER BY month DESC, comment_count DESC
     """
     return client.query(query).to_dataframe()

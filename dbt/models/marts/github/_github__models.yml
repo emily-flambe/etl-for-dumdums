@@ -6,6 +6,7 @@ models:
       Fact table of GitHub pull requests enriched with author details,
       review statistics, and derived metrics like cycle time.
     config:
+      schema: github
       tags: ['github']
     columns:
       - name: pull_request_id
@@ -28,6 +29,7 @@ models:
       per PR participant. Used for measuring review responsiveness by team member.
       Excludes PR authors reviewing their own PRs.
     config:
+      schema: github
       tags: ['github']
     columns:
       - name: reviewer_id

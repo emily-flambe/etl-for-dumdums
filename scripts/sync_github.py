@@ -3,24 +3,20 @@
 
 import argparse
 import logging
-import os
-import sys
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from dotenv import load_dotenv
+
+from lib import bigquery as bq
+from lib.source import run_sync
+from sources.github import (
+    GitHubPRCommentsSource,
+    GitHubPRReviewsSource,
+    GitHubPullRequestsSource,
+    GitHubUsersSource,
+)
 
 # Load .env for local development (no-op if not present)
-from dotenv import load_dotenv
 load_dotenv()
-
-from lib.source import run_sync
-from lib import bigquery as bq
-from sources.github import (
-    GitHubUsersSource,
-    GitHubPullRequestsSource,
-    GitHubPRReviewsSource,
-    GitHubPRCommentsSource,
-)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -91,7 +87,7 @@ if __name__ == "__main__":
         comment_source.primary_key,
         dataset_id=comment_source.dataset_id,
     )
-    logger.info(f"Sync complete for {comment_source.__class__.__name__}")
+    logger.info(f"Sync complete for {comment_source.__name__}")
 
     # Step 4: Extract users from all activity data
     logger.info("Extracting users from activity data...")

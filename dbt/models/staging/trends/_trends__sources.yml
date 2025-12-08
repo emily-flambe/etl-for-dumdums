@@ -1,0 +1,16 @@
+version: 2
+
+sources:
+  - name: trends
+    description: Raw data from Google Trends via pytrends
+    database: "{{ env_var('GCP_PROJECT_ID') }}"
+    schema: trends
+    tables:
+      - name: raw_interest_over_time
+        description: Keyword interest over time from Google Trends
+        columns:
+          - name: id
+            description: Unique record ID (keyword_date_geo)
+            tests:
+              - unique
+              - not_null

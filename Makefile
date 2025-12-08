@@ -8,10 +8,10 @@ endif
 FULL ?=
 
 .PHONY: help run \
-        sync sync-linear sync-github sync-oura \
-        dbt dbt-linear dbt-github dbt-oura \
-        dbt-run dbt-run-linear dbt-run-github dbt-run-oura \
-        dbt-test dbt-test-linear dbt-test-github dbt-test-oura \
+        sync sync-linear sync-github sync-oura sync-hacker-news sync-trends \
+        dbt dbt-linear dbt-github dbt-oura dbt-hacker-news dbt-trends \
+        dbt-run dbt-run-linear dbt-run-github dbt-run-oura dbt-run-hacker-news dbt-run-trends \
+        dbt-test dbt-test-linear dbt-test-github dbt-test-oura dbt-test-hacker-news dbt-test-trends \
         dbt-compile dbt-debug dbt-deps dbt-clean dbt-docs dbt-docs-serve dbt-seed dbt-snapshot \
         app test
 
@@ -25,7 +25,10 @@ help:
 	@echo "  make sync-linear          - Linear (7 day lookback)"
 	@echo "  make sync-github          - GitHub (30 day lookback)"
 	@echo "  make sync-oura            - Oura (7 day lookback)"
+	@echo "  make sync-hacker-news     - Hacker News (30 day lookback)"
+	@echo "  make sync-trends          - Google Trends (3 month lookback)"
 	@echo "  make sync-linear FULL=1   - Linear full sync"
+	@echo "  make sync-hacker-news FULL=1 - Hacker News full sync (5 years)"
 	@echo ""
 	@echo "dbt (append -linear, -github, or -oura to filter by source):"
 	@echo "  make dbt                  - Build + test all models"
@@ -54,7 +57,13 @@ sync-github:
 sync-oura:
 	uv run python scripts/sync_oura.py $(if $(FULL),--full,)
 
-sync: sync-linear sync-github sync-oura
+sync-hacker-news:
+	uv run python scripts/sync_hacker_news.py $(if $(FULL),--full,)
+
+sync-trends:
+	uv run python scripts/sync_trends.py
+
+sync: sync-linear sync-github sync-oura sync-hacker-news sync-trends
 
 # ---------- dbt ----------
 
@@ -70,6 +79,12 @@ dbt-github:
 dbt-oura:
 	cd dbt && uv run dbt build --profiles-dir . --select tag:oura
 
+dbt-hacker-news:
+	cd dbt && uv run dbt build --profiles-dir . --select tag:hacker_news
+
+dbt-trends:
+	cd dbt && uv run dbt build --profiles-dir . --select tag:trends
+
 dbt-run:
 	cd dbt && uv run dbt run --profiles-dir .
 
@@ -82,6 +97,12 @@ dbt-run-github:
 dbt-run-oura:
 	cd dbt && uv run dbt run --profiles-dir . --select tag:oura
 
+dbt-run-hacker-news:
+	cd dbt && uv run dbt run --profiles-dir . --select tag:hacker_news
+
+dbt-run-trends:
+	cd dbt && uv run dbt run --profiles-dir . --select tag:trends
+
 dbt-test:
 	cd dbt && uv run dbt test --profiles-dir .
 
@@ -93,6 +114,12 @@ dbt-test-github:
 
 dbt-test-oura:
 	cd dbt && uv run dbt test --profiles-dir . --select tag:oura
+
+dbt-test-hacker-news:
+	cd dbt && uv run dbt test --profiles-dir . --select tag:hacker_news
+
+dbt-test-trends:
+	cd dbt && uv run dbt test --profiles-dir . --select tag:trends
 
 dbt-compile:
 	cd dbt && uv run dbt compile --profiles-dir .
@@ -125,7 +152,7 @@ run: sync dbt
 # ---------- Streamlit app ----------
 
 app:
-	uv run streamlit run app.py
+	uv run streamlit run Summary.py
 
 # ---------- Tests ----------
 

@@ -1,0 +1,44 @@
+version: 2
+
+models:
+  - name: int_hn__comment_keywords
+    description: Comments matched to keywords via their parent story title
+    config:
+      schema: hacker_news
+      tags: ['hacker_news']
+    columns:
+      - name: comment_id
+        description: Unique comment ID
+        tests:
+          - not_null
+      - name: story_id
+        description: Parent story ID
+      - name: keyword
+        description: Keyword matched from story title
+      - name: comment_text_clean
+        description: Cleaned comment text for sentiment analysis
+      - name: posted_month
+        description: Month the comment was posted
+
+  - name: int_hn__comment_sentiment
+    description: Comments with BigQuery ML sentiment analysis scores
+    config:
+      schema: hacker_news
+      tags: ['hacker_news']
+    columns:
+      - name: comment_id
+        description: Unique comment ID
+        tests:
+          - not_null
+      - name: story_id
+        description: Parent story ID
+      - name: keyword
+        description: Keyword matched from story title
+      - name: posted_month
+        description: Month the comment was posted
+      - name: sentiment_score
+        description: Sentiment score from -1 (negative) to 1 (positive)
+      - name: sentiment_magnitude
+        description: Strength of sentiment (0+, regardless of positive/negative)
+      - name: sentiment_category
+        description: Categorized as positive, negative, or neutral

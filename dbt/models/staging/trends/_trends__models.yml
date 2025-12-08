@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: stg_trends__interest_over_time
+    description: Staged Google Trends interest over time data
+    config:
+      schema: trends
+      tags: ['trends']
+    columns:
+      - name: trend_id
+        description: Unique record ID
+        tests:
+          - unique
+          - not_null
+      - name: keyword
+        description: The search keyword being tracked
+        tests:
+          - not_null
+      - name: date
+        description: Date of the interest measurement
+        tests:
+          - not_null
+      - name: interest
+        description: Interest score (0-100, relative to peak)
+      - name: is_partial
+        description: Whether this data point is partial (incomplete period)
+      - name: geo
+        description: Geographic region code
+      - name: fetched_at
+        description: When this data was fetched from Google Trends

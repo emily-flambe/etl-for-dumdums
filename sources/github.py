@@ -7,6 +7,7 @@ for the demexchange organization.
 
 import logging
 import os
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -14,6 +15,9 @@ import requests
 from google.cloud import bigquery
 
 from lib.source import Source
+
+# Rate limiting delay between individual PR detail fetches
+API_DELAY_SECONDS = 0.05  # 50ms between requests
 
 logger = logging.getLogger(__name__)
 
@@ -186,13 +190,16 @@ class GitHubPullRequestsSource(Source):
     def fetch(self) -> list[dict[str, Any]]:
         """Fetch PRs from all configured repos."""
         if self.full_sync:
-            logger.info("Fetching ALL PRs (full sync)")
-            since_date = None
+            # Full sync goes back to Aug 1, 2025
+            since_date = datetime(2025, 8, 1, tzinfo=timezone.utc)
+            logger.info(f"Fetching PRs since {since_date.date()} (full sync)")
         else:
             since_date = datetime.now(timezone.utc) - timedelta(days=self.lookback_days)
             logger.info(f"Fetching PRs updated since {since_date.isoformat()}")
 
         all_prs = []
+        headers = get_headers()
+
         for repo in REPOS:
             repo_name = repo.split("/")[1]
             url = f"{GITHUB_API_URL}/repos/{repo}/pulls"
@@ -203,14 +210,33 @@ class GitHubPullRequestsSource(Source):
             }
             prs = fetch_paginated(url, params)
 
-            # Filter by updated_at (if incremental) and add repo context
+            # Filter by updated_at and add repo context
+            filtered_count = 0
             for pr in prs:
-                if since_date:
-                    updated_at = datetime.fromisoformat(pr["updated_at"].replace("Z", "+00:00"))
-                    if updated_at < since_date:
-                        continue
+                updated_at = datetime.fromisoformat(pr["updated_at"].replace("Z", "+00:00"))
+                if updated_at < since_date:
+                    continue
+
+                filtered_count += 1
+
+                # Fetch individual PR to get additions/deletions/changed_files
+                # (these fields aren't included in the list endpoint)
+                pr_detail_url = f"{GITHUB_API_URL}/repos/{repo}/pulls/{pr['number']}"
+                try:
+                    time.sleep(API_DELAY_SECONDS)  # Rate limiting
+                    response = requests.get(pr_detail_url, headers=headers, timeout=30)
+                    response.raise_for_status()
+                    pr_detail = response.json()
+                    pr["additions"] = pr_detail.get("additions")
+                    pr["deletions"] = pr_detail.get("deletions")
+                    pr["changed_files"] = pr_detail.get("changed_files")
+                except Exception as e:
+                    logger.warning(f"Failed to fetch details for PR #{pr['number']}: {e}")
+
                 pr["_repo"] = repo_name
                 all_prs.append(pr)
+
+            logger.info(f"Filtered to {filtered_count} PRs from {repo_name}")
 
         # Store for use by reviews/comments sources
         self._fetched_prs = all_prs

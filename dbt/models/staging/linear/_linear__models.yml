@@ -4,6 +4,7 @@ models:
   - name: stg_linear__issues
     description: Staged Linear issues with cleaned column names
     config:
+      schema: linear
       tags: ['linear']
     columns:
       - name: issue_id
@@ -21,6 +22,7 @@ models:
   - name: stg_linear__users
     description: Staged Linear users
     config:
+      schema: linear
       tags: ['linear']
     columns:
       - name: user_id
@@ -34,6 +36,7 @@ models:
   - name: stg_linear__cycles
     description: Staged Linear cycles/sprints
     config:
+      schema: linear
       tags: ['linear']
     columns:
       - name: cycle_id

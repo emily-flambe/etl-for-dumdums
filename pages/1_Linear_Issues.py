@@ -8,7 +8,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from app_data import load_issues
+from data import load_issues
 
 st.set_page_config(page_title="Linear Issues", layout="wide")
 st.title("Linear Issues")

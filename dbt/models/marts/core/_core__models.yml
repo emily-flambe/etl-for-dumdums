@@ -6,6 +6,7 @@ models:
       User dimension table combining Linear and GitHub users via email join.
       Users appearing in both systems are merged into a single record.
     config:
+      schema: linear
       tags: ['linear', 'github']
     columns:
       - name: user_id

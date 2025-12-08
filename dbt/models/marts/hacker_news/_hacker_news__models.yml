@@ -1,0 +1,107 @@
+version: 2
+
+models:
+  - name: fct_hn_weekly_stats
+    description: Weekly aggregate statistics for Hacker News activity
+    config:
+      schema: hacker_news
+      tags: ['hacker_news']
+    columns:
+      - name: week
+        description: Week start date (Monday)
+        tests:
+          - unique
+          - not_null
+      - name: story_count
+        description: Number of stories posted
+      - name: total_score
+        description: Sum of all story scores
+      - name: avg_score
+        description: Average story score
+      - name: total_comments
+        description: Sum of all comments
+      - name: avg_comments
+        description: Average comments per story
+      - name: unique_authors
+        description: Number of distinct authors
+
+  - name: fct_hn_domain_stats
+    description: Weekly domain popularity statistics
+    config:
+      schema: hacker_news
+      tags: ['hacker_news']
+    columns:
+      - name: week
+        description: Week start date (Monday)
+        tests:
+          - not_null
+      - name: domain
+        description: Website domain
+        tests:
+          - not_null
+      - name: story_count
+        description: Number of stories from this domain
+      - name: total_score
+        description: Sum of scores for stories from this domain
+      - name: avg_score
+        description: Average score for stories from this domain
+
+  - name: fct_hn_keyword_trends
+    description: Weekly keyword mention trends in story titles
+    config:
+      schema: hacker_news
+      tags: ['hacker_news']
+    columns:
+      - name: week
+        description: Week start date (Monday)
+        tests:
+          - not_null
+      - name: keyword
+        description: Technology keyword tracked
+        tests:
+          - not_null
+      - name: mention_count
+        description: Number of stories mentioning this keyword
+      - name: total_score
+        description: Sum of scores for stories mentioning this keyword
+      - name: avg_score
+        description: Average score for stories mentioning this keyword
+
+  - name: fct_hn_keyword_sentiment
+    description: Monthly sentiment aggregates by keyword from comment analysis
+    config:
+      schema: hacker_news
+      tags: ['hacker_news']
+    columns:
+      - name: keyword
+        description: Technology keyword tracked
+        tests:
+          - not_null
+      - name: month
+        description: Month of aggregation
+        tests:
+          - not_null
+      - name: comment_count
+        description: Number of comments analyzed
+      - name: story_count
+        description: Number of distinct stories
+      - name: avg_sentiment
+        description: Average sentiment score (-1 to 1)
+      - name: sentiment_stddev
+        description: Standard deviation of sentiment scores
+      - name: avg_magnitude
+        description: Average sentiment magnitude (strength)
+      - name: positive_pct
+        description: Percentage of comments with positive sentiment
+      - name: negative_pct
+        description: Percentage of comments with negative sentiment
+      - name: neutral_pct
+        description: Percentage of comments with neutral sentiment
+      - name: min_sentiment
+        description: Minimum sentiment score in the month
+      - name: max_sentiment
+        description: Maximum sentiment score in the month
+      - name: sentiment_mom_change
+        description: Month-over-month change in average sentiment
+      - name: positive_pct_mom_change
+        description: Month-over-month change in positive percentage

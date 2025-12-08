@@ -1,0 +1,193 @@
+"""
+Hacker News Sentiment Analysis dashboard.
+
+Visualizes sentiment trends for technology keywords based on HN comment analysis.
+"""
+
+import altair as alt
+import pandas as pd
+import streamlit as st
+
+from data import load_hn_keyword_sentiment
+
+st.set_page_config(page_title="HN Sentiment", layout="wide")
+st.title("Hacker News Sentiment Trends")
+
+st.markdown("""
+Sentiment analysis of Hacker News comments, aggregated by keyword and month.
+Comments are matched to stories containing tracked keywords, then analyzed
+using BigQuery ML sentiment scoring.
+""")
+
+df = load_hn_keyword_sentiment()
+
+if df.empty:
+    st.warning("No sentiment data available. Run the sync and dbt pipeline first.")
+    st.code("make sync-hacker-news && make dbt-hacker-news")
+    st.stop()
+
+# Convert month to datetime for Altair
+df["month"] = pd.to_datetime(df["month"])
+
+# Sidebar filters
+st.sidebar.header("Filters")
+
+keywords = sorted(df["keyword"].unique())
+default_keywords = [k for k in ["AI", "Rust", "Crypto", "OpenAI", "Python"] if k in keywords][:5]
+
+selected_keywords = st.sidebar.multiselect(
+    "Keywords",
+    keywords,
+    default=default_keywords,
+)
+
+min_comments = st.sidebar.slider(
+    "Min comments per month",
+    min_value=1,
+    max_value=100,
+    value=10,
+)
+
+# Apply filters
+if selected_keywords:
+    filtered = df[
+        (df["keyword"].isin(selected_keywords)) &
+        (df["comment_count"] >= min_comments)
+    ]
+else:
+    filtered = df[df["comment_count"] >= min_comments]
+
+if filtered.empty:
+    st.warning("No data matches the current filters. Try adjusting the keyword selection or minimum comment threshold.")
+    st.stop()
+
+# Metrics for most recent month
+st.subheader("Latest Month")
+latest_month = filtered["month"].max()
+latest = filtered[filtered["month"] == latest_month].sort_values("comment_count", ascending=False)
+
+if not latest.empty:
+    cols = st.columns(min(len(latest), 5))
+    for i, (_, row) in enumerate(latest.iterrows()):
+        if i >= len(cols):
+            break
+        delta = row["sentiment_mom_change"]
+        delta_str = f"{delta:+.2f}" if pd.notna(delta) else None
+        cols[i].metric(
+            row["keyword"],
+            f"{row['avg_sentiment']:.2f}",
+            delta=delta_str,
+            help=f"{int(row['comment_count'])} comments, {row['positive_pct']:.0f}% positive",
+        )
+
+# Sentiment over time chart
+st.subheader("Sentiment Over Time")
+
+if selected_keywords:
+    sentiment_chart = (
+        alt.Chart(filtered)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("month:T", title="Month", axis=alt.Axis(format="%b %Y", values=filtered["month"].drop_duplicates().sort_values().tolist())),
+            y=alt.Y("avg_sentiment:Q", title="Avg Sentiment", scale=alt.Scale(domain=[-1, 1])),
+            color=alt.Color("keyword:N", title="Keyword"),
+            tooltip=[
+                alt.Tooltip("month:T", title="Month", format="%b %Y"),
+                alt.Tooltip("keyword:N", title="Keyword"),
+                alt.Tooltip("avg_sentiment:Q", title="Avg Sentiment", format=".2f"),
+                alt.Tooltip("comment_count:Q", title="Comments"),
+                alt.Tooltip("positive_pct:Q", title="Positive %", format=".1f"),
+            ],
+        )
+        .properties(height=400)
+    )
+
+    # Add zero line for reference
+    zero_line = alt.Chart(pd.DataFrame({"y": [0]})).mark_rule(
+        strokeDash=[5, 5], color="gray"
+    ).encode(y="y:Q")
+
+    st.altair_chart(sentiment_chart + zero_line, use_container_width=True)
+else:
+    st.info("Select at least one keyword to see sentiment trends.")
+
+# Sentiment distribution over time (stacked area charts)
+st.subheader("Sentiment Distribution")
+
+if selected_keywords:
+    # Prepare data for stacked chart
+    dist_data = filtered.melt(
+        id_vars=["month", "keyword"],
+        value_vars=["positive_pct", "neutral_pct", "negative_pct"],
+        var_name="sentiment_type",
+        value_name="percentage",
+    )
+    dist_data["sentiment_type"] = dist_data["sentiment_type"].map({
+        "positive_pct": "Positive",
+        "neutral_pct": "Neutral",
+        "negative_pct": "Negative",
+    })
+
+    # One chart per keyword
+    for keyword in selected_keywords:
+        kw_data = dist_data[dist_data["keyword"] == keyword]
+        if kw_data.empty:
+            continue
+
+        st.write(f"**{keyword}**")
+
+        area_chart = (
+            alt.Chart(kw_data)
+            .mark_area()
+            .encode(
+                x=alt.X("month:T", title="Month", axis=alt.Axis(format="%b %Y", values=kw_data["month"].drop_duplicates().sort_values().tolist())),
+                y=alt.Y("percentage:Q", title="Percentage", stack="normalize"),
+                color=alt.Color(
+                    "sentiment_type:N",
+                    scale=alt.Scale(
+                        domain=["Positive", "Neutral", "Negative"],
+                        range=["#22c55e", "#94a3b8", "#ef4444"],
+                    ),
+                    title="Sentiment",
+                ),
+                tooltip=[
+                    alt.Tooltip("month:T", title="Month", format="%b %Y"),
+                    alt.Tooltip("sentiment_type:N", title="Type"),
+                    alt.Tooltip("percentage:Q", title="Percentage", format=".1f"),
+                ],
+            )
+            .properties(height=200)
+        )
+
+        st.altair_chart(area_chart, use_container_width=True)
+else:
+    st.info("Select keywords above to see sentiment distribution charts.")
+
+# Data table
+st.subheader("Raw Data")
+
+display_df = filtered.sort_values(["month", "keyword"], ascending=[False, True]).copy()
+# Format for display
+display_df["month"] = display_df["month"].dt.strftime("%Y-%m")
+
+st.dataframe(
+    display_df,
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "month": st.column_config.TextColumn("Month", width="small"),
+        "keyword": st.column_config.TextColumn("Keyword", width="small"),
+        "comment_count": st.column_config.NumberColumn("Comments", format="%d", width="small"),
+        "story_count": st.column_config.NumberColumn("Stories", format="%d", width="small"),
+        "avg_sentiment": st.column_config.NumberColumn("Avg Sentiment", format="%.3f", width="small"),
+        "positive_pct": st.column_config.NumberColumn("Positive %", format="%.1f", width="small"),
+        "negative_pct": st.column_config.NumberColumn("Negative %", format="%.1f", width="small"),
+        "neutral_pct": st.column_config.NumberColumn("Neutral %", format="%.1f", width="small"),
+        "sentiment_mom_change": st.column_config.NumberColumn("MoM Change", format="%.3f", width="small"),
+    },
+    column_order=[
+        "month", "keyword", "comment_count", "story_count",
+        "avg_sentiment", "positive_pct", "negative_pct", "neutral_pct",
+        "sentiment_mom_change"
+    ],
+)

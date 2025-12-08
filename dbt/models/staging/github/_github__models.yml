@@ -4,6 +4,7 @@ models:
   - name: stg_github__users
     description: Staged GitHub users with cleaned column names
     config:
+      schema: github
       tags: ['github']
     columns:
       - name: user_id
@@ -19,6 +20,7 @@ models:
   - name: stg_github__pull_requests
     description: Staged GitHub pull requests
     config:
+      schema: github
       tags: ['github']
     columns:
       - name: pull_request_id
@@ -34,6 +36,7 @@ models:
   - name: stg_github__pr_reviews
     description: Staged GitHub PR reviews
     config:
+      schema: github
       tags: ['github']
     columns:
       - name: review_id
@@ -49,6 +52,7 @@ models:
   - name: stg_github__pr_comments
     description: Staged GitHub PR review comments
     config:
+      schema: github
       tags: ['github']
     columns:
       - name: comment_id

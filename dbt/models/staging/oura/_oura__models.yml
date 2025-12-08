@@ -4,6 +4,7 @@ models:
   - name: stg_oura__sleep
     description: Staged daily sleep scores with contributor breakdown
     config:
+      schema: oura
       tags: ['oura']
     columns:
       - name: sleep_id
@@ -33,6 +34,7 @@ models:
   - name: stg_oura__daily_readiness
     description: Staged daily readiness scores with cleaned column names
     config:
+      schema: oura
       tags: ['oura']
     columns:
       - name: readiness_id
@@ -50,6 +52,7 @@ models:
   - name: stg_oura__daily_activity
     description: Staged daily activity metrics with cleaned column names and times in minutes
     config:
+      schema: oura
       tags: ['oura']
     columns:
       - name: activity_id

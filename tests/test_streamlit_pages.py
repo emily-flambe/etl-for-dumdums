@@ -189,25 +189,56 @@ class TestOuraPage:
         assert "encoding" in spec
         assert spec["mark"]["type"] == "bar"
 
-    def test_oura_pie_charts(self, mock_oura_data):
-        """Test that the distribution pie charts render without errors."""
+    def test_oura_distribution_bar_charts(self, mock_oura_data):
+        """Test that the distribution bar charts render without errors."""
         df = mock_oura_data.copy()
 
-        # Sleep categories pie chart
+        # Sleep categories bar chart
         sleep_dist = df["sleep_category"].value_counts().reset_index()
         sleep_dist.columns = ["Category", "Count"]
 
-        sleep_chart = alt.Chart(sleep_dist).mark_arc().encode(
-            theta="Count:Q",
+        sleep_chart = alt.Chart(sleep_dist).mark_bar().encode(
+            x=alt.X("Count:Q", title="Days"),
+            y=alt.Y("Category:N", sort=["excellent", "good", "fair", "poor"], title=None),
             color=alt.Color("Category:N", scale=alt.Scale(
                 domain=["excellent", "good", "fair", "poor"],
                 range=["#22c55e", "#84cc16", "#f59e0b", "#ef4444"]
-            )),
+            ), legend=None),
             tooltip=["Category:N", "Count:Q"],
-        ).properties(height=200)
+        ).properties(height=150)
 
         spec = sleep_chart.to_dict()
-        assert spec["mark"]["type"] == "arc"
+        assert spec["mark"]["type"] == "bar"
+
+    def test_oura_temperature_chart(self, mock_oura_data):
+        """Test that the temperature deviation bar chart renders without errors."""
+        df = mock_oura_data.copy()
+        df["day"] = pd.to_datetime(df["day"])
+
+        # Filter for non-null temperature data
+        temp_data = df[df["temperature_deviation"].notna()].copy()
+
+        # Add color category (same as page does)
+        temp_data["temp_color"] = temp_data["temperature_deviation"].apply(
+            lambda x: "elevated" if x > 0.5 else ("warm" if x > 0 else ("cool" if x > -0.5 else "low"))
+        )
+
+        temp_chart = alt.Chart(temp_data).mark_bar().encode(
+            x=alt.X("day:T", title="Date"),
+            y=alt.Y("temperature_deviation:Q", title="Deviation from Baseline (C)"),
+            color=alt.Color("temp_color:N", scale=alt.Scale(
+                domain=["elevated", "warm", "cool", "low"],
+                range=["#ef4444", "#f59e0b", "#3b82f6", "#6366f1"]
+            ), legend=alt.Legend(title="Temp")),
+            tooltip=[
+                alt.Tooltip("day:T", title="Date"),
+                alt.Tooltip("temperature_deviation:Q", title="Deviation", format="+.2f"),
+            ],
+        ).properties(height=200)
+
+        spec = temp_chart.to_dict()
+        assert "encoding" in spec
+        assert spec["mark"]["type"] == "bar"
 
 
 class TestHomePage:

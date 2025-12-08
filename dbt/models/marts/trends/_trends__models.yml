@@ -1,0 +1,40 @@
+version: 2
+
+models:
+  - name: fct_keyword_trends
+    description: |
+      Fact table for Google Trends keyword interest over time.
+      Includes rolling averages, week-over-week changes, and peak detection.
+    config:
+      schema: trends
+      tags: ['trends']
+    columns:
+      - name: trend_id
+        description: Unique record ID
+        tests:
+          - unique
+          - not_null
+      - name: keyword
+        description: The search keyword being tracked
+      - name: date
+        description: Date of the interest measurement
+      - name: interest
+        description: Interest score (0-100, relative to peak in the time range)
+      - name: is_partial
+        description: Whether this data point is partial (incomplete period)
+      - name: geo
+        description: Geographic region code
+      - name: fetched_at
+        description: When this data was fetched from Google Trends
+      - name: interest_7d_avg
+        description: 7-day rolling average of interest
+      - name: interest_30d_avg
+        description: 30-day rolling average of interest
+      - name: interest_wow_change
+        description: Week-over-week change in interest
+      - name: interest_mom_change
+        description: Month-over-month change in interest
+      - name: is_local_peak
+        description: Whether this is a local peak (max in 7-day window)
+      - name: recency_rank
+        description: Rank by recency (1 = most recent)
