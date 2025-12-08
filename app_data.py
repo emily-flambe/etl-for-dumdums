@@ -62,3 +62,27 @@ def load_pull_requests():
     ORDER BY created_at DESC
     """
     return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_oura_daily():
+    """Load daily Oura wellness data from BigQuery."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM linear.fct_oura_daily
+    ORDER BY day DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_reviewer_activity():
+    """Load reviewer activity metrics from BigQuery."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM github.fct_reviewer_activity
+    ORDER BY pr_created_at DESC
+    """
+    return client.query(query).to_dataframe()

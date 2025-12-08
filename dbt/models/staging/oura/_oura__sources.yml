@@ -1,0 +1,34 @@
+version: 2
+
+sources:
+  - name: oura
+    description: Raw data from Oura Ring API v2
+    database: "{{ env_var('GCP_PROJECT_ID') }}"
+    schema: oura
+    tables:
+      - name: raw_sleep
+        description: Sleep sessions from Oura Ring (raw ETL data)
+        columns:
+          - name: id
+            description: Unique sleep session ID
+            tests:
+              - unique
+              - not_null
+
+      - name: raw_daily_readiness
+        description: Daily readiness scores from Oura Ring (raw ETL data)
+        columns:
+          - name: id
+            description: Unique readiness record ID
+            tests:
+              - unique
+              - not_null
+
+      - name: raw_daily_activity
+        description: Daily activity metrics from Oura Ring (raw ETL data)
+        columns:
+          - name: id
+            description: Unique activity record ID
+            tests:
+              - unique
+              - not_null

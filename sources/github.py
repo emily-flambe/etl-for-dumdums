@@ -179,13 +179,18 @@ class GitHubPullRequestsSource(Source):
         bigquery.SchemaField("changed_files", "INTEGER"),
     ]
 
-    def __init__(self, lookback_days: int = 30):
+    def __init__(self, lookback_days: int = 30, full_sync: bool = False):
         self.lookback_days = lookback_days
+        self.full_sync = full_sync
 
     def fetch(self) -> list[dict[str, Any]]:
         """Fetch PRs from all configured repos."""
-        since_date = datetime.now(timezone.utc) - timedelta(days=self.lookback_days)
-        logger.info(f"Fetching PRs updated since {since_date.isoformat()}")
+        if self.full_sync:
+            logger.info("Fetching ALL PRs (full sync)")
+            since_date = None
+        else:
+            since_date = datetime.now(timezone.utc) - timedelta(days=self.lookback_days)
+            logger.info(f"Fetching PRs updated since {since_date.isoformat()}")
 
         all_prs = []
         for repo in REPOS:
@@ -198,12 +203,14 @@ class GitHubPullRequestsSource(Source):
             }
             prs = fetch_paginated(url, params)
 
-            # Filter by updated_at and add repo context
+            # Filter by updated_at (if incremental) and add repo context
             for pr in prs:
-                updated_at = datetime.fromisoformat(pr["updated_at"].replace("Z", "+00:00"))
-                if updated_at >= since_date:
-                    pr["_repo"] = repo_name
-                    all_prs.append(pr)
+                if since_date:
+                    updated_at = datetime.fromisoformat(pr["updated_at"].replace("Z", "+00:00"))
+                    if updated_at < since_date:
+                        continue
+                pr["_repo"] = repo_name
+                all_prs.append(pr)
 
         # Store for use by reviews/comments sources
         self._fetched_prs = all_prs

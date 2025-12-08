@@ -3,6 +3,8 @@ version: 2
 models:
   - name: stg_linear__issues
     description: Staged Linear issues with cleaned column names
+    config:
+      tags: ['linear']
     columns:
       - name: issue_id
         description: Unique issue identifier
@@ -18,6 +20,8 @@ models:
 
   - name: stg_linear__users
     description: Staged Linear users
+    config:
+      tags: ['linear']
     columns:
       - name: user_id
         description: Unique user identifier
@@ -29,6 +33,8 @@ models:
 
   - name: stg_linear__cycles
     description: Staged Linear cycles/sprints
+    config:
+      tags: ['linear']
     columns:
       - name: cycle_id
         description: Unique cycle identifier

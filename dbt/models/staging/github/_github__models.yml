@@ -3,6 +3,8 @@ version: 2
 models:
   - name: stg_github__users
     description: Staged GitHub users with cleaned column names
+    config:
+      tags: ['github']
     columns:
       - name: user_id
         description: Unique GitHub user identifier
@@ -16,6 +18,8 @@ models:
 
   - name: stg_github__pull_requests
     description: Staged GitHub pull requests
+    config:
+      tags: ['github']
     columns:
       - name: pull_request_id
         description: Unique pull request identifier
@@ -29,6 +33,8 @@ models:
 
   - name: stg_github__pr_reviews
     description: Staged GitHub PR reviews
+    config:
+      tags: ['github']
     columns:
       - name: review_id
         description: Unique review identifier
@@ -42,6 +48,8 @@ models:
 
   - name: stg_github__pr_comments
     description: Staged GitHub PR review comments
+    config:
+      tags: ['github']
     columns:
       - name: comment_id
         description: Unique comment identifier

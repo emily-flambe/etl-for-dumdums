@@ -1,0 +1,75 @@
+version: 2
+
+models:
+  - name: stg_oura__sleep
+    description: Staged daily sleep scores with contributor breakdown
+    config:
+      tags: ['oura']
+    columns:
+      - name: sleep_id
+        description: Unique daily sleep record identifier
+        tests:
+          - unique
+          - not_null
+      - name: day
+        description: Date of sleep measurement
+      - name: sleep_score
+        description: Overall sleep score (0-100)
+      - name: contributor_deep_sleep
+        description: Deep sleep contributor score
+      - name: contributor_efficiency
+        description: Sleep efficiency contributor score
+      - name: contributor_latency
+        description: Latency contributor score
+      - name: contributor_rem_sleep
+        description: REM sleep contributor score
+      - name: contributor_restfulness
+        description: Restfulness contributor score
+      - name: contributor_timing
+        description: Sleep timing contributor score
+      - name: contributor_total_sleep
+        description: Total sleep contributor score
+
+  - name: stg_oura__daily_readiness
+    description: Staged daily readiness scores with cleaned column names
+    config:
+      tags: ['oura']
+    columns:
+      - name: readiness_id
+        description: Unique readiness record identifier
+        tests:
+          - unique
+          - not_null
+      - name: day
+        description: Date of readiness measurement
+      - name: score
+        description: Overall readiness score (0-100)
+      - name: temperature_deviation
+        description: Body temperature deviation from baseline
+
+  - name: stg_oura__daily_activity
+    description: Staged daily activity metrics with cleaned column names and times in minutes
+    config:
+      tags: ['oura']
+    columns:
+      - name: activity_id
+        description: Unique activity record identifier
+        tests:
+          - unique
+          - not_null
+      - name: day
+        description: Date of activity measurement
+      - name: score
+        description: Overall activity score (0-100)
+      - name: steps
+        description: Daily step count
+      - name: high_activity_time_minutes
+        description: High intensity activity time in minutes
+      - name: medium_activity_time_minutes
+        description: Medium intensity activity time in minutes
+      - name: low_activity_time_minutes
+        description: Low intensity activity time in minutes
+      - name: sedentary_time_minutes
+        description: Sedentary time in minutes
+      - name: resting_time_minutes
+        description: Resting time in minutes

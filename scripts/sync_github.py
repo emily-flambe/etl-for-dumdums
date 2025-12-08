@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Sync GitHub data to BigQuery."""
 
+import argparse
 import logging
 import os
 import sys
@@ -30,11 +31,22 @@ logger = logging.getLogger(__name__)
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Sync GitHub data to BigQuery")
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Full sync (all PRs, not just recent)",
+    )
+    args = parser.parse_args()
+
     client = bq.get_client()
 
     # Step 1: Fetch PRs
     logger.info("Fetching pull requests...")
-    pr_source = GitHubPullRequestsSource(lookback_days=30)
+    if args.full:
+        pr_source = GitHubPullRequestsSource(full_sync=True)
+    else:
+        pr_source = GitHubPullRequestsSource(lookback_days=30)
     prs = pr_source.fetch()
     pr_rows = pr_source.transform(prs)
 
@@ -49,7 +61,7 @@ if __name__ == "__main__":
     )
     logger.info(f"Sync complete for {pr_source.__class__.__name__}")
 
-    # Step 2: Fetch reviews
+    # Step 2: Fetch reviews (for the PRs we just fetched)
     logger.info("Fetching PR reviews...")
     review_source = GitHubPRReviewsSource(prs=prs)
     reviews = review_source.fetch()
@@ -65,7 +77,7 @@ if __name__ == "__main__":
     )
     logger.info(f"Sync complete for {review_source.__class__.__name__}")
 
-    # Step 3: Fetch comments
+    # Step 3: Fetch comments (for the PRs we just fetched)
     logger.info("Fetching PR comments...")
     comment_source = GitHubPRCommentsSource(prs=prs)
     comments = comment_source.fetch()

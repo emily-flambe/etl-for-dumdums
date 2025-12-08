@@ -3,7 +3,7 @@
 ## What This Project Is
 
 A personal ETL + analytics pipeline that:
-1. **Extracts** data from APIs (Linear, eventually GitHub) via Python scripts
+1. **Extracts** data from APIs (Linear, GitHub, Oura) via Python scripts
 2. **Loads** raw data into BigQuery (one dataset per source)
 3. **Transforms** raw data into analytics-ready tables using dbt
 
@@ -13,19 +13,26 @@ A personal ETL + analytics pipeline that:
 etl-for-dumdums/
 ├── Makefile                 # make run, make dbt, make dbt-compile, etc.
 ├── .github/workflows/
-│   ├── linear-sync.yml      # Daily ETL at 5 AM UTC
-│   └── dbt-run.yml          # Runs after ETL completes
+│   ├── sync-linear.yml      # Daily Linear ETL at 5 AM UTC
+│   ├── sync-github.yml      # Daily GitHub ETL at 5 AM UTC
+│   └── sync-oura.yml        # Daily Oura ETL at 5 AM UTC
 ├── lib/
 │   ├── bigquery.py          # get_client(), merge_table(), load_table()
 │   └── source.py            # Base Source class, run_sync()
 ├── sources/
-│   └── linear.py            # LinearIssuesSource, LinearUsersSource, LinearCyclesSource
+│   ├── linear.py            # LinearIssuesSource, LinearUsersSource, LinearCyclesSource
+│   ├── github.py            # GitHubUsersSource, GitHubPullRequestsSource, etc.
+│   └── oura.py              # OuraSleepSource, OuraReadinessSource, OuraActivitySource
 ├── scripts/
-│   └── sync_linear.py       # Entry point for Linear ETL
+│   ├── sync_linear.py       # Entry point for Linear ETL
+│   ├── sync_github.py       # Entry point for GitHub ETL
+│   └── sync_oura.py         # Entry point for Oura ETL
 └── dbt/
     ├── models/
     │   ├── staging/linear/  # stg_linear__* views
-    │   └── marts/core/      # fct_issues, dim_users tables
+    │   ├── staging/github/  # stg_github__* views
+    │   ├── staging/oura/    # stg_oura__* views
+    │   └── marts/core/      # fct_issues, fct_pull_requests, fct_oura_daily, dim_users
     ├── dbt_project.yml
     └── profiles.yml
 ```
@@ -33,11 +40,11 @@ etl-for-dumdums/
 ## Architecture
 
 ```
-APIs (Linear, GitHub, ...)
+APIs (Linear, GitHub, Oura)
     ↓ Python ETL (scripts/)
-BigQuery source datasets (linear.raw_*, github.raw_*)
+BigQuery source datasets (linear.raw_*, github.raw_*, oura.raw_*)
     ↓ dbt (dbt/models/)
-BigQuery source datasets (linear.stg_*, linear.fct_*, linear.dim_*)
+BigQuery analytics tables (linear.stg_*, linear.fct_*, linear.dim_*)
 ```
 
 One dataset per source. Raw tables prefixed with `raw_`, dbt models in same dataset.
@@ -68,11 +75,26 @@ One dataset per source. Raw tables prefixed with `raw_`, dbt models in same data
 
 ### ETL Conventions
 
-- **Incremental merge**: Uses BigQuery MERGE for upserts (not TRUNCATE)
+- **Incremental by default**: All syncs fetch only recently updated records
+- **Full sync option**: Use `--full` flag to fetch all historical records
+- **BigQuery MERGE**: Uses upsert pattern (safe to run full sync anytime, no duplicates)
 - **Source-specific datasets**: `linear.*`, `github.*` (one dataset per source)
 - **Raw table prefix**: All ETL tables named `raw_*` (e.g., `raw_issues`)
 - **Temp tables**: Written to `raw_data` dataset, cleaned up after merge
 - **Primary keys**: Every table must have a `primary_key` for merge operations
+
+### Sync Modes
+
+| Source | Incremental (default) | Full (`--full`) |
+|--------|----------------------|-----------------|
+| Linear | Last 7 days | All issues |
+| GitHub | Last 30 days | All PRs |
+| Oura | Last 7 days | Last 365 days |
+
+**When to use full sync:**
+- First time setup (empty tables)
+- Backfilling historical data
+- Data recovery after issues
 
 ### dbt Conventions
 
@@ -90,6 +112,7 @@ One dataset per source. Raw tables prefixed with `raw_`, dbt models in same data
 | `GCP_SA_KEY_FILE` | dbt | Path to credentials.json file |
 | `LINEAR_API_KEY` | ETL | Linear API key |
 | `GITHUB_TOKEN` | ETL | GitHub PAT with repo and read:org scopes |
+| `OURA_API_TOKEN` | ETL | Oura personal access token |
 
 ## Common Commands
 
@@ -97,22 +120,29 @@ One dataset per source. Raw tables prefixed with `raw_`, dbt models in same data
 # Install dependencies
 uv sync
 
-# Run full pipeline (sync + dbt)
+# Run full pipeline (incremental sync + dbt)
 make run
 
-# Pipeline steps
-make sync           # Run all data syncs
-make sync-linear    # Just Linear
+# Syncs (add FULL=1 for full sync)
+make sync               # All sources (incremental)
+make sync-linear        # Linear only (7 day lookback)
+make sync-github        # GitHub only (30 day lookback)
+make sync-oura          # Oura only (7 day lookback)
+make sync-linear FULL=1 # Linear full sync
+make sync-oura FULL=1   # Oura full sync (365 days)
 
-# dbt commands
-make dbt            # Build models + run tests
-make dbt-run        # Run models only
-make dbt-test       # Run tests only
-make dbt-compile    # Compile (no execution)
-make dbt-docs       # Generate docs
-make dbt-docs-serve # Serve docs locally
-make dbt-debug      # Test connection
-make dbt-clean      # Clean artifacts
+# dbt (append -linear, -github, or -oura to filter)
+make dbt                # Build + test all models
+make dbt-linear         # Build + test Linear models
+make dbt-run            # Run all models (no tests)
+make dbt-run-linear     # Run Linear models
+make dbt-test           # Test all models
+make dbt-test-github    # Test GitHub models
+make dbt-compile        # Compile (no execution)
+make dbt-docs           # Generate docs
+make dbt-docs-serve     # Serve docs locally
+make dbt-debug          # Test connection
+make dbt-clean          # Clean artifacts
 
 # See all commands
 make help
@@ -146,10 +176,52 @@ All Linear tables live in the `linear` dataset:
 | `github.stg_github__*` | dbt view | Staged GitHub tables |
 | `github.fct_pull_requests` | dbt table | PRs with author/review stats |
 
+### Oura Dataset
+
+| Table | Type | Description |
+|-------|------|-------------|
+| `oura.raw_sleep` | ETL | Daily sleep scores and contributors |
+| `oura.raw_daily_readiness` | ETL | Daily readiness scores |
+| `oura.raw_daily_activity` | ETL | Daily activity metrics (steps, calories) |
+| `linear.stg_oura__sleep` | dbt view | Staged sleep data |
+| `linear.stg_oura__daily_readiness` | dbt view | Staged readiness data |
+| `linear.stg_oura__daily_activity` | dbt view | Staged activity data |
+| `linear.fct_oura_daily` | dbt table | Joined daily wellness metrics |
+
 Temp tables used during ETL merges go to `raw_data` dataset and are cleaned up automatically.
+
+## Streamlit App
+
+The Streamlit app lives in `app.py` (home page) and `pages/` (sub-pages).
+
+### Testing Streamlit Changes
+
+**IMPORTANT**: When modifying Streamlit pages, you MUST run the actual app to verify changes work:
+
+```bash
+make app  # Starts Streamlit on localhost:8501
+```
+
+Then navigate to the modified page in the browser. Do NOT rely only on Python syntax checks or isolated data tests - many errors (especially Altair chart errors) only appear at runtime when the page renders.
+
+**Common issues that only appear at runtime**:
+- Altair chart encoding errors (e.g., nested `alt.condition()` not supported in v6)
+- BigQuery `dbdate` type not compatible with pandas operations
+- Nullable `Int64` columns causing issues with Altair conditions
+- Streamlit widget state errors
+
+### Adding a New Streamlit Page
+
+1. Create `pages/N_PageName.py` (N = order number)
+2. Add data loader function to `app_data.py` with `@st.cache_data(ttl=300)`
+3. Add tests to `tests/test_streamlit_pages.py` that exercise the chart code
+4. Run `make test` to verify charts render without Altair errors
+5. Run `make app` and navigate to the new page to verify it loads without errors
+6. Test all interactive elements (filters, charts, tables)
 
 ## Current State
 
 - **Working**: Full pipeline (ETL + dbt) runs via `make run`
 - **Working**: GitHub source syncs PRs, reviews, comments for demexchange org
+- **Working**: Oura source syncs sleep, readiness, and activity data
 - **Repos synced**: demexchange/ddx-data-pipeline, demexchange/snowflake-queries

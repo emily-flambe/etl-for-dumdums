@@ -1,0 +1,52 @@
+version: 2
+
+models:
+  - name: fct_pull_requests
+    description: |
+      Fact table of GitHub pull requests enriched with author details,
+      review statistics, and derived metrics like cycle time.
+    config:
+      tags: ['github']
+    columns:
+      - name: pull_request_id
+        description: Unique pull request identifier
+        tests:
+          - unique
+          - not_null
+      - name: pr_number
+        description: PR number within repo (e.g., #123)
+      - name: author_email
+        description: Email of PR author (cross-platform join key)
+      - name: cycle_time_hours
+        description: Hours from PR open to merge
+      - name: time_to_first_review_hours
+        description: Hours from PR open to first review
+
+  - name: fct_reviewer_activity
+    description: |
+      Reviewer activity metrics showing response times for reviews and comments
+      per PR participant. Used for measuring review responsiveness by team member.
+      Excludes PR authors reviewing their own PRs.
+    config:
+      tags: ['github']
+    columns:
+      - name: reviewer_id
+        description: GitHub user ID of the reviewer/commenter
+        tests:
+          - not_null
+      - name: pull_request_id
+        description: FK to fct_pull_requests
+        tests:
+          - not_null
+      - name: reviewer_username
+        description: GitHub username of the reviewer
+      - name: pr_repo
+        description: Repository name
+      - name: pr_created_at
+        description: When the PR was opened
+      - name: time_to_first_review_hours
+        description: Hours from PR open to this reviewer's first review
+      - name: time_to_first_comment_hours
+        description: Hours from PR open to this reviewer's first comment
+      - name: time_to_first_response_hours
+        description: Hours from PR open to first activity (review or comment)

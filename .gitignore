@@ -16,3 +16,6 @@ __pycache__/
 .idea/
 .vscode/
 *.swp
+
+# Plans (messy working docs)
+docs/plans/

@@ -54,24 +54,40 @@ One dataset per source. All tables (raw + dbt) live in the same dataset.
 ## Commands
 
 ```bash
-make help           # Show all commands
+make help               # Show all commands
 
 # Full pipeline
-make run            # Sync all sources + run dbt
+make run                # Sync all sources + run dbt
 
-# ETL
-make sync           # Run all syncs (incremental, last 7 days)
-make sync-linear    # Just Linear (incremental)
-make sync-linear-full  # Full historical sync (first time or backfill)
+# Syncs (add FULL=1 for full sync)
+make sync               # All sources (incremental)
+make sync-linear        # Linear only (7 day lookback)
+make sync-github        # GitHub only (30 day lookback)
+make sync-linear FULL=1 # Linear full sync
 
-# dbt
-make dbt            # Build + test
-make dbt-run        # Run models only
-make dbt-test       # Test only
-make dbt-compile    # Compile only
-make dbt-docs       # Generate docs
-make dbt-docs-serve # Serve docs locally
+# dbt (append -linear, -github, or -oura to filter)
+make dbt                # Build + test all models
+make dbt-linear         # Build + test Linear models
+make dbt-run            # Run all models (no tests)
+make dbt-run-linear     # Run Linear models
+make dbt-test           # Test all models
+make dbt-test-github    # Test GitHub models
+make dbt-compile        # Compile only
+make dbt-docs           # Generate docs
 ```
+
+## Sync Modes
+
+All syncs default to **incremental** (recent records only). Add `FULL=1` for full sync:
+
+| Mode | Example | Description |
+|------|---------|-------------|
+| **Incremental** | `make sync-linear` | Recent records only |
+| **Full** | `make sync-linear FULL=1` | All historical records |
+
+**Lookback periods (incremental):** Linear 7 days, GitHub 30 days
+
+Both modes use BigQuery MERGE (upsert), so full syncs won't create duplicates.
 
 ## GitHub Actions
 

@@ -4,81 +4,98 @@ ifneq (,$(wildcard .env))
     export
 endif
 
-# Optional SOURCE filter (linear, github, or empty for all)
-SOURCE ?=
+# Optional flags
+FULL ?=
 
-.PHONY: help run sync sync-linear sync-github \
-        dbt dbt-run dbt-test dbt-compile dbt-debug dbt-deps dbt-clean \
-        dbt-docs dbt-docs-serve dbt-seed dbt-snapshot \
-        app
+.PHONY: help run \
+        sync sync-linear sync-github sync-oura \
+        dbt dbt-linear dbt-github dbt-oura \
+        dbt-run dbt-run-linear dbt-run-github dbt-run-oura \
+        dbt-test dbt-test-linear dbt-test-github dbt-test-oura \
+        dbt-compile dbt-debug dbt-deps dbt-clean dbt-docs dbt-docs-serve dbt-seed dbt-snapshot \
+        app test
 
 # Default target
 help:
 	@echo "Pipeline:"
 	@echo "  make run                  - Full pipeline (all syncs + dbt build)"
-	@echo "  make sync                 - Run all data syncs"
-	@echo "  make sync SOURCE=linear   - Sync only Linear"
-	@echo "  make sync SOURCE=github   - Sync only GitHub"
 	@echo ""
-	@echo "dbt:"
-	@echo "  make dbt                  - Build models + run tests"
-	@echo "  make dbt-run              - Run models only"
-	@echo "  make dbt-run SOURCE=github - Run only GitHub models"
-	@echo "  make dbt-test             - Run tests only"
-	@echo "  make dbt-compile          - Compile models (no execution)"
-	@echo "  make dbt-debug            - Test connection and config"
-	@echo "  make dbt-deps             - Install dbt packages"
-	@echo "  make dbt-seed             - Load seed data"
-	@echo "  make dbt-snapshot         - Run snapshots"
-	@echo "  make dbt-docs             - Generate documentation"
-	@echo "  make dbt-docs-serve       - Serve docs locally"
-	@echo "  make dbt-clean            - Clean artifacts"
+	@echo "Syncs (add FULL=1 for full sync instead of incremental):"
+	@echo "  make sync                 - All sources"
+	@echo "  make sync-linear          - Linear (7 day lookback)"
+	@echo "  make sync-github          - GitHub (30 day lookback)"
+	@echo "  make sync-oura            - Oura (7 day lookback)"
+	@echo "  make sync-linear FULL=1   - Linear full sync"
+	@echo ""
+	@echo "dbt (append -linear, -github, or -oura to filter by source):"
+	@echo "  make dbt                  - Build + test all models"
+	@echo "  make dbt-linear           - Build + test Linear models"
+	@echo "  make dbt-run              - Run all models (no tests)"
+	@echo "  make dbt-run-linear       - Run Linear models"
+	@echo "  make dbt-test             - Test all models"
+	@echo "  make dbt-test-github      - Test GitHub models"
+	@echo "  make dbt-compile          - Compile (no execution)"
+	@echo "  make dbt-docs             - Generate docs"
 	@echo ""
 	@echo "App:"
 	@echo "  make app                  - Run Streamlit dashboard"
+	@echo ""
+	@echo "Tests:"
+	@echo "  make test                 - Run all Python tests"
 
 # ---------- Syncs ----------
 
 sync-linear:
-	uv run python scripts/sync_linear.py
-
-sync-linear-full:
-	uv run python scripts/sync_linear.py --full
+	uv run python scripts/sync_linear.py $(if $(FULL),--full,)
 
 sync-github:
-	uv run python scripts/sync_github.py
+	uv run python scripts/sync_github.py $(if $(FULL),--full,)
 
-# Conditional sync based on SOURCE
-sync:
-ifeq ($(SOURCE),linear)
-	$(MAKE) sync-linear
-else ifeq ($(SOURCE),github)
-	$(MAKE) sync-github
-else
-	$(MAKE) sync-linear
-	$(MAKE) sync-github
-endif
+sync-oura:
+	uv run python scripts/sync_oura.py $(if $(FULL),--full,)
+
+sync: sync-linear sync-github sync-oura
 
 # ---------- dbt ----------
 
-# Build dbt select argument based on SOURCE
-ifdef SOURCE
-    DBT_SELECT := --select staging.$(SOURCE)+ marts.core
-else
-    DBT_SELECT :=
-endif
-
 dbt:
-	cd dbt && uv run dbt build --profiles-dir . $(DBT_SELECT)
+	cd dbt && uv run dbt build --profiles-dir .
+
+dbt-linear:
+	cd dbt && uv run dbt build --profiles-dir . --select tag:linear
+
+dbt-github:
+	cd dbt && uv run dbt build --profiles-dir . --select tag:github
+
+dbt-oura:
+	cd dbt && uv run dbt build --profiles-dir . --select tag:oura
 
 dbt-run:
-	cd dbt && uv run dbt run --profiles-dir . $(DBT_SELECT)
+	cd dbt && uv run dbt run --profiles-dir .
+
+dbt-run-linear:
+	cd dbt && uv run dbt run --profiles-dir . --select tag:linear
+
+dbt-run-github:
+	cd dbt && uv run dbt run --profiles-dir . --select tag:github
+
+dbt-run-oura:
+	cd dbt && uv run dbt run --profiles-dir . --select tag:oura
 
 dbt-test:
-	cd dbt && uv run dbt test --profiles-dir . $(DBT_SELECT)
+	cd dbt && uv run dbt test --profiles-dir .
+
+dbt-test-linear:
+	cd dbt && uv run dbt test --profiles-dir . --select tag:linear
+
+dbt-test-github:
+	cd dbt && uv run dbt test --profiles-dir . --select tag:github
+
+dbt-test-oura:
+	cd dbt && uv run dbt test --profiles-dir . --select tag:oura
 
 dbt-compile:
-	cd dbt && uv run dbt compile --profiles-dir . $(DBT_SELECT)
+	cd dbt && uv run dbt compile --profiles-dir .
 
 dbt-debug:
 	cd dbt && uv run dbt debug --profiles-dir .
@@ -109,3 +126,8 @@ run: sync dbt
 
 app:
 	uv run streamlit run app.py
+
+# ---------- Tests ----------
+
+test:
+	uv run pytest tests/ -v
