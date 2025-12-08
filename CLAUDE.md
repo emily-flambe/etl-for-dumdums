@@ -10,7 +10,7 @@ A personal ETL + analytics pipeline that:
 ## Directory Structure
 
 ```
-github-actions-workflows/
+etl-for-dumdums/
 ├── Makefile                 # make run, make dbt, make dbt-compile, etc.
 ├── .github/workflows/
 │   ├── linear-sync.yml      # Daily ETL at 5 AM UTC

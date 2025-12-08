@@ -1,5 +1,5 @@
 [project]
-name = "github-actions-workflows"
+name = "etl-for-dumdums"
 version = "0.1.0"
 description = "ETL jobs for syncing data from various APIs to BigQuery"
 requires-python = ">=3.11"

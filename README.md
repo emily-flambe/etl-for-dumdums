@@ -1,4 +1,4 @@
-# GitHub Actions Workflows
+# ETL for Dumdums
 
 ETL jobs for syncing data from various APIs to BigQuery, with dbt for transformations.
 
@@ -18,7 +18,7 @@ make run
 ## Project Structure
 
 ```
-github-actions-workflows/
+etl-for-dumdums/
 ├── Makefile                  # make run, make dbt, make dbt-compile, etc.
 ├── .github/workflows/
 │   ├── linear-sync.yml       # ETL: Linear API -> BigQuery
