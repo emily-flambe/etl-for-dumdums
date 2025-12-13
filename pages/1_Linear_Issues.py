@@ -258,7 +258,7 @@ if len(completed_assigned) > 0:
     for _, row in assignee_pivot.iterrows():
         html += '<tr>'
         for col in assignee_pivot.columns:
-            html += f'<td style="text-align: center; padding: 8px; border: 1px solid #ddd; color: black;">{row[col]}</td>'
+            html += f'<td style="text-align: center; padding: 8px; border: 1px solid #ddd;">{row[col]}</td>'
         html += '</tr>'
 
     # Totals row
