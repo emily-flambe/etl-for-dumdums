@@ -239,37 +239,7 @@ if len(completed_assigned) > 0:
         if col != "Assignee":
             assignee_pivot[col] = assignee_pivot[col].astype(int)
 
-    # Add column totals row
-    totals = {"Assignee": "Total"}
-    for col in assignee_pivot.columns:
-        if col != "Assignee":
-            totals[col] = assignee_pivot[col].sum()
-
-    # Build HTML table manually with inline styles
-    html = '<table style="width: 100%; border-collapse: collapse;">'
-
-    # Header row
-    html += '<tr>'
-    for col in assignee_pivot.columns:
-        html += f'<th style="text-align: center; padding: 8px; background-color: #f0f2f6; border: 1px solid #ddd; color: black;">{col}</th>'
-    html += '</tr>'
-
-    # Data rows
-    for _, row in assignee_pivot.iterrows():
-        html += '<tr>'
-        for col in assignee_pivot.columns:
-            html += f'<td style="text-align: center; padding: 8px; border: 1px solid #ddd;">{row[col]}</td>'
-        html += '</tr>'
-
-    # Totals row
-    html += '<tr style="font-weight: bold; background-color: #f9f9f9;">'
-    for col in assignee_pivot.columns:
-        html += f'<td style="text-align: center; padding: 8px; border: 1px solid #ddd; color: black;">{totals[col]}</td>'
-    html += '</tr>'
-
-    html += '</table>'
-
-    st.markdown(html, unsafe_allow_html=True)
+    st.dataframe(assignee_pivot, use_container_width=True, hide_index=True)
 else:
     st.info("No completed issues with assignees in selected filters")
 
