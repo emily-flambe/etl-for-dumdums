@@ -171,35 +171,43 @@ activity_chart = alt.Chart(weekly_opened).mark_bar(color="#6366f1").encode(
 ).properties(height=250)
 st.altair_chart(activity_chart, use_container_width=True)
 
-# Cycle Time Chart
+# Combined Response Times Chart
+st.write("**Response Times (Weekly)**")
+
+# Prepare data for combined chart
+timing_data = []
 if len(weekly_cycle) > 0:
-    st.write("**Average Time to Merge (Weekly)**")
-    cycle_chart = alt.Chart(weekly_cycle).mark_line(point=True, color="#f59e0b").encode(
-        x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d", values=weekly_cycle["week"].tolist())),
-        y=alt.Y("Avg Cycle Time (hours):Q", title="Hours"),
-        tooltip=[alt.Tooltip("week:T", format="%b %d, %Y"), "Avg Cycle Time (hours):Q"],
-    ).properties(height=200)
-    st.altair_chart(cycle_chart, use_container_width=True)
+    cycle_df = weekly_cycle.copy()
+    cycle_df["Metric"] = "Time to Merge"
+    cycle_df = cycle_df.rename(columns={"Avg Cycle Time (hours)": "Hours"})
+    timing_data.append(cycle_df[["week", "Metric", "Hours"]])
 
-# Time to Approval Chart
 if len(weekly_review) > 0:
-    st.write("**Average Time to Approval (Weekly)**")
-    review_chart = alt.Chart(weekly_review).mark_line(point=True, color="#22c55e").encode(
-        x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d", values=weekly_review["week"].tolist())),
-        y=alt.Y("Avg Time to Approval (hours):Q", title="Hours"),
-        tooltip=[alt.Tooltip("week:T", format="%b %d, %Y"), "Avg Time to Approval (hours):Q"],
-    ).properties(height=200)
-    st.altair_chart(review_chart, use_container_width=True)
+    review_df = weekly_review.copy()
+    review_df["Metric"] = "Time to Approval"
+    review_df = review_df.rename(columns={"Avg Time to Approval (hours)": "Hours"})
+    timing_data.append(review_df[["week", "Metric", "Hours"]])
 
-# Time to First Comment Chart
 if len(weekly_comment) > 0:
-    st.write("**Average Time to First Comment (Weekly)**")
-    comment_chart = alt.Chart(weekly_comment).mark_line(point=True, color="#6366f1").encode(
-        x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d", values=weekly_comment["week"].tolist())),
-        y=alt.Y("Avg Time to First Comment (hours):Q", title="Hours"),
-        tooltip=[alt.Tooltip("week:T", format="%b %d, %Y"), "Avg Time to First Comment (hours):Q"],
-    ).properties(height=200)
-    st.altair_chart(comment_chart, use_container_width=True)
+    comment_df = weekly_comment.copy()
+    comment_df["Metric"] = "Time to First Comment"
+    comment_df = comment_df.rename(columns={"Avg Time to First Comment (hours)": "Hours"})
+    timing_data.append(comment_df[["week", "Metric", "Hours"]])
+
+if timing_data:
+    combined_timing = pd.concat(timing_data, ignore_index=True)
+    timing_chart = alt.Chart(combined_timing).mark_line(point=True).encode(
+        x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d")),
+        y=alt.Y("Hours:Q", title="Hours"),
+        color=alt.Color("Metric:N", scale=alt.Scale(
+            domain=["Time to Merge", "Time to Approval", "Time to First Comment"],
+            range=["#f59e0b", "#22c55e", "#6366f1"]
+        )),
+        tooltip=[alt.Tooltip("week:T", format="%b %d, %Y"), "Metric:N", alt.Tooltip("Hours:Q", format=".1f")],
+    ).properties(height=300)
+    st.altair_chart(timing_chart, use_container_width=True)
+else:
+    st.info("No timing data available")
 
 # Code Volume Chart
 st.write("**Code Volume Over Time (Weekly)**")
