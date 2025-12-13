@@ -179,7 +179,7 @@ st.subheader("Trends")
 
 # PR Activity Chart - just show PRs opened per week
 st.write("**PRs Opened Per Week**")
-activity_chart = alt.Chart(weekly_opened).mark_bar(color="#6366f1", size=20).encode(
+activity_chart = alt.Chart(weekly_opened).mark_bar(color="#6366f1", size=20, dx=10).encode(
     x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d", values=weekly_opened["week"].tolist())),
     y=alt.Y("PRs Opened:Q", title="PRs"),
     tooltip=[alt.Tooltip("week:T", format="%b %d, %Y"), "PRs Opened:Q"],
