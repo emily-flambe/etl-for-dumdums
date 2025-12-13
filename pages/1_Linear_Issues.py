@@ -19,6 +19,17 @@ df = load_issues()
 # Sidebar filters
 st.sidebar.header("Filters")
 
+# Date range filter (at top)
+st.sidebar.subheader("Date Range")
+min_date = df["created_at"].min().date()
+max_date = df["created_at"].max().date()
+date_range = st.sidebar.date_input(
+    "Created between",
+    value=(min_date, max_date),
+    min_value=min_date,
+    max_value=max_date,
+)
+
 states = sorted(df["state"].dropna().unique().tolist())
 selected_states = st.sidebar.pills("State", states, selection_mode="multi")
 
@@ -39,17 +50,6 @@ selected_project = st.sidebar.selectbox("Project", projects)
 # Issue type filter (parent/child/standalone)
 issue_types = ["Parent", "Child", "Standalone"]
 selected_issue_types = st.sidebar.pills("Issue Type", issue_types, selection_mode="multi")
-
-# Date range filter
-st.sidebar.subheader("Date Range")
-min_date = df["created_at"].min().date()
-max_date = df["created_at"].max().date()
-date_range = st.sidebar.date_input(
-    "Created between",
-    value=(min_date, max_date),
-    min_value=min_date,
-    max_value=max_date,
-)
 
 # Apply filters
 filtered = df.copy()
@@ -100,65 +100,6 @@ col6.metric("In Progress", len(filtered[filtered["state"] == "In Progress"]))
 col7.metric("Done", len(filtered[filtered["state"] == "Done"]))
 col8.metric("Avg Days Open", f"{filtered['days_since_created'].mean():.0f}")
 
-# Charts row
-st.subheader("Charts")
-
-st.write("**Points Completed by Assignee (by Cycle)**")
-
-# Filter to completed issues with assigned owners
-done_states = ["Done", "Done Pending Deployment"]
-completed_assigned = filtered[
-    (filtered["state"].isin(done_states)) & (filtered["assignee_name"].notna())
-].copy()
-
-# Get top assignees by total points for color consistency
-top_assignees = (
-    completed_assigned.groupby("assignee_name")["estimate"]
-    .sum()
-    .sort_values(ascending=False)
-    .head(10)
-    .index.tolist()
-)
-
-# Filter to top assignees and aggregate by cycle
-assignee_cycle = completed_assigned[completed_assigned["assignee_name"].isin(top_assignees)].copy()
-assignee_cycle = (
-    assignee_cycle.groupby(["cycle_name", "cycle_starts_at", "assignee_name"])["estimate"]
-    .sum()
-    .reset_index(name="Points")
-)
-assignee_cycle = assignee_cycle.dropna(subset=["cycle_name"])
-assignee_cycle = assignee_cycle.sort_values("cycle_starts_at")
-
-# Get sorted cycle names for x-axis
-cycle_order = assignee_cycle.drop_duplicates("cycle_name").sort_values("cycle_starts_at")["cycle_name"].tolist()
-
-if len(assignee_cycle) > 0:
-    chart = alt.Chart(assignee_cycle).mark_line(point=True).encode(
-        x=alt.X("cycle_name:N", title="Cycle", sort=cycle_order),
-        y=alt.Y("Points:Q", title="Points"),
-        color=alt.Color("assignee_name:N", title="Assignee", sort=top_assignees),
-        tooltip=["cycle_name:N", "assignee_name:N", "Points:Q"],
-    ).properties(height=300)
-    st.altair_chart(chart, use_container_width=True)
-else:
-    st.info("No completed issues with assignees in selected filters")
-
-# Second charts row
-with st.container():
-    st.write("**Points Completed by Cycle**")
-    done_states = ["Done", "Done Pending Deployment"]
-    completed = filtered[filtered["state"].isin(done_states)].copy()
-    # Group by cycle and sum points, keeping cycle_starts_at for sorting
-    cycle_completed = (
-        completed.groupby(["cycle_name", "cycle_starts_at"])["estimate"]
-        .sum()
-        .reset_index(name="Points")
-    )
-    cycle_completed = cycle_completed.dropna(subset=["cycle_name"])
-    cycle_completed = cycle_completed.sort_values("cycle_starts_at")
-    st.bar_chart(cycle_completed, x="cycle_name", y="Points", x_label="Cycle", y_label="Points")
-
 # SDLC Label Breakdown by Cycle
 st.subheader("How do Exchange Engineers Spend Their Time?")
 
@@ -171,8 +112,11 @@ sdlc_colors = {
     "SDLC:NewStuff": "#6366f1",
 }
 
-# Explode labels and filter for SDLC labels
-sdlc_data = filtered[filtered["cycle_name"].notna() & filtered["estimate"].notna()].copy()
+# Filter to completed issues, explode labels, and filter for SDLC labels
+done_states = ["Done", "Done Pending Deployment"]
+sdlc_data = filtered[
+    filtered["state"].isin(done_states) & filtered["cycle_name"].notna() & filtered["estimate"].notna()
+].copy()
 sdlc_data = sdlc_data.explode("labels")
 sdlc_data = sdlc_data[sdlc_data["labels"].isin(sdlc_labels)]
 
@@ -252,6 +196,82 @@ if len(sdlc_data) > 0:
     st.altair_chart(abs_chart + abs_text, use_container_width=True)
 else:
     st.info("No issues with SDLC labels found in the selected filters.")
+
+# Points Completed by Assignee table
+st.subheader("Points Completed by Assignee")
+
+# Filter to completed issues with assigned owners
+done_states = ["Done", "Done Pending Deployment"]
+completed_assigned = filtered[
+    (filtered["state"].isin(done_states)) & (filtered["assignee_name"].notna())
+].copy()
+
+if len(completed_assigned) > 0:
+    # Get cycle order by start date
+    cycle_order_df = completed_assigned[["cycle_name", "cycle_starts_at"]].dropna().drop_duplicates()
+    cycle_order_df = cycle_order_df.sort_values("cycle_starts_at")
+    cycle_order = cycle_order_df["cycle_name"].tolist()
+
+    # Pivot: assignees as rows, cycles as columns
+    assignee_pivot = completed_assigned.pivot_table(
+        index="assignee_name",
+        columns="cycle_name",
+        values="estimate",
+        aggfunc="sum",
+        fill_value=0,
+    )
+
+    # Reorder columns by cycle start date
+    assignee_pivot = assignee_pivot[[c for c in cycle_order if c in assignee_pivot.columns]]
+
+    # Add Total column
+    assignee_pivot["Total"] = assignee_pivot.sum(axis=1)
+
+    # Sort by Total descending
+    assignee_pivot = assignee_pivot.sort_values("Total", ascending=False)
+
+    # Reset index to make assignee_name a column
+    assignee_pivot = assignee_pivot.reset_index()
+    assignee_pivot = assignee_pivot.rename(columns={"assignee_name": "Assignee"})
+
+    # Convert to int for cleaner display
+    for col in assignee_pivot.columns:
+        if col != "Assignee":
+            assignee_pivot[col] = assignee_pivot[col].astype(int)
+
+    # Add column totals row
+    totals = {"Assignee": "Total"}
+    for col in assignee_pivot.columns:
+        if col != "Assignee":
+            totals[col] = assignee_pivot[col].sum()
+
+    # Build HTML table manually with inline styles
+    html = '<table style="width: 100%; border-collapse: collapse;">'
+
+    # Header row
+    html += '<tr>'
+    for col in assignee_pivot.columns:
+        html += f'<th style="text-align: center; padding: 8px; background-color: #f0f2f6; border: 1px solid #ddd; color: black;">{col}</th>'
+    html += '</tr>'
+
+    # Data rows
+    for _, row in assignee_pivot.iterrows():
+        html += '<tr>'
+        for col in assignee_pivot.columns:
+            html += f'<td style="text-align: center; padding: 8px; border: 1px solid #ddd; color: black;">{row[col]}</td>'
+        html += '</tr>'
+
+    # Totals row
+    html += '<tr style="font-weight: bold; background-color: #f9f9f9;">'
+    for col in assignee_pivot.columns:
+        html += f'<td style="text-align: center; padding: 8px; border: 1px solid #ddd; color: black;">{totals[col]}</td>'
+    html += '</tr>'
+
+    html += '</table>'
+
+    st.markdown(html, unsafe_allow_html=True)
+else:
+    st.info("No completed issues with assignees in selected filters")
 
 # Data table
 st.subheader("Issues")
