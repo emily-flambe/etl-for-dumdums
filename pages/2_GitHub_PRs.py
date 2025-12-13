@@ -219,7 +219,7 @@ if timing_data:
         color=alt.Color("Metric:N", scale=alt.Scale(
             domain=["Time to Merge", "Time to Approval", "Time to First Comment or Approval"],
             range=["#f59e0b", "#22c55e", "#6366f1"]
-        )),
+        ), legend=alt.Legend(orient="bottom")),
         tooltip=[alt.Tooltip("week:T", format="%b %d, %Y"), "Metric:N", alt.Tooltip("Hours:Q", format=".1f")],
     ).properties(height=300)
     st.altair_chart(timing_chart, use_container_width=True)
@@ -243,7 +243,7 @@ if has_code_data:
         color=alt.Color("Metric:N", scale=alt.Scale(
             domain=["Lines Added", "Lines Deleted"],
             range=["#22c55e", "#ef4444"]
-        )),
+        ), legend=alt.Legend(orient="bottom")),
         xOffset="Metric:N",
         tooltip=["week_label:N", "Metric:N", "Lines:Q"],
     ).properties(height=250)
