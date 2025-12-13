@@ -219,7 +219,7 @@ if timing_data:
         color=alt.Color("Metric:N", scale=alt.Scale(
             domain=["Time to Merge", "Time to Approval", "Time to First Comment or Approval"],
             range=["#f59e0b", "#22c55e", "#6366f1"]
-        ), legend=alt.Legend(orient="bottom")),
+        ), legend=alt.Legend(orient="bottom", labelLimit=0)),
         tooltip=[alt.Tooltip("week:T", format="%b %d, %Y"), "Metric:N", alt.Tooltip("Hours:Q", format=".1f")],
     ).properties(height=300)
     st.altair_chart(timing_chart, use_container_width=True)
