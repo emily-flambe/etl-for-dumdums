@@ -12,7 +12,6 @@ from vega_datasets import data as vega_data
 
 from data import load_fda_recalls_by_state, load_fda_recalls_by_topic, load_fda_recall_topics
 
-st.set_page_config(page_title="FDA Food Recalls", layout="wide")
 st.title("FDA Food Recalls")
 
 st.markdown("""
@@ -54,6 +53,46 @@ selected_classification = st.sidebar.selectbox(
     options=classifications,
     help="Class I = Most serious (dangerous), Class II = Moderate, Class III = Minor"
 )
+
+# State filter
+state_names_map = {
+    'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+    'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+    'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+    'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+    'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi',
+    'MO': 'Missouri', 'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire',
+    'NJ': 'New Jersey', 'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina',
+    'ND': 'North Dakota', 'OH': 'Ohio', 'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania',
+    'RI': 'Rhode Island', 'SC': 'South Carolina', 'SD': 'South Dakota', 'TN': 'Tennessee',
+    'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington',
+    'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming', 'DC': 'District of Columbia',
+    'PR': 'Puerto Rico'
+}
+
+# Get states that have data
+states_with_data = sorted(recalls_with_topics["state_code"].dropna().unique().tolist())
+state_options = ["All States"] + [f"{code} - {state_names_map.get(code, code)}" for code in states_with_data]
+
+# Initialize session state for map click
+if "selected_state" not in st.session_state:
+    st.session_state.selected_state = "All States"
+
+selected_state_display = st.sidebar.selectbox(
+    "State",
+    options=state_options,
+    index=state_options.index(st.session_state.selected_state) if st.session_state.selected_state in state_options else 0,
+    key="state_filter"
+)
+
+# Update session state
+st.session_state.selected_state = selected_state_display
+
+# Extract state code from selection
+if selected_state_display == "All States":
+    selected_state_code = None
+else:
+    selected_state_code = selected_state_display.split(" - ")[0]
 
 # Build topic options organized by category
 topic_options = ["All Topics", "Pathogen (Any)", "Allergen (Any)"]
@@ -120,6 +159,10 @@ if selected_topic != "All Topics":
             col = topic_column_map[selected_topic]
             filtered_data = filtered_data[filtered_data[col] == True]
 
+# State filtering
+if selected_state_code is not None:
+    filtered_data = filtered_data[filtered_data["state_code"] == selected_state_code]
+
 # Re-aggregate by state with filters applied
 filtered_by_state = (
     filtered_data.groupby("state_code")
@@ -184,6 +227,7 @@ col4.metric("States Affected", f"{states_affected}")
 
 # US Map
 st.subheader("Recall Distribution by State")
+st.caption("Click a state to filter, or use the State dropdown in the sidebar")
 
 # Load US states geography
 states_geo = alt.topo_feature(vega_data.us_10m.url, "states")
@@ -201,11 +245,12 @@ background = alt.Chart(states_geo).mark_geoshape(
     height=500
 )
 
-# Choropleth layer with recall data
+# Choropleth layer with recall data and click selection
 if not filtered_by_state.empty:
     choropleth = alt.Chart(states_geo).mark_geoshape(
         stroke="white",
         strokeWidth=0.5,
+        cursor="pointer",
     ).encode(
         color=alt.Color(
             "total_recalls:Q",
@@ -214,6 +259,7 @@ if not filtered_by_state.empty:
         ),
         tooltip=[
             alt.Tooltip("state_name:N", title="State"),
+            alt.Tooltip("state_code:N", title="Code"),
             alt.Tooltip("total_recalls:Q", title="Total Recalls"),
             alt.Tooltip("class_i_recalls:Q", title="Class I"),
             alt.Tooltip("class_ii_recalls:Q", title="Class II"),
@@ -221,7 +267,7 @@ if not filtered_by_state.empty:
         ],
     ).transform_lookup(
         lookup="id",
-        from_=alt.LookupData(filtered_by_state, "id", ["state_name", "total_recalls", "class_i_recalls", "class_ii_recalls", "class_iii_recalls"]),
+        from_=alt.LookupData(filtered_by_state, "id", ["state_code", "state_name", "total_recalls", "class_i_recalls", "class_ii_recalls", "class_iii_recalls"]),
     ).project(
         type="albersUsa"
     ).properties(
@@ -229,10 +275,38 @@ if not filtered_by_state.empty:
         height=500
     )
 
-    st.altair_chart(background + choropleth, use_container_width=True)
+    # Render map with selection support
+    map_selection = st.altair_chart(
+        background + choropleth,
+        use_container_width=True,
+        on_select="rerun",
+        selection_mode="point",
+    )
+
+    # Handle map click selection
+    if map_selection and map_selection.selection and "param_1" in map_selection.selection:
+        selected_points = map_selection.selection.get("param_1", [])
+        if selected_points:
+            # Get the FIPS id from selection and find matching state
+            selected_id = selected_points[0].get("id") if isinstance(selected_points[0], dict) else None
+            if selected_id:
+                # Find the state code for this FIPS id
+                matching_state = filtered_by_state[filtered_by_state["id"] == selected_id]
+                if not matching_state.empty:
+                    clicked_state_code = matching_state.iloc[0]["state_code"]
+                    new_selection = f"{clicked_state_code} - {state_names_map.get(clicked_state_code, clicked_state_code)}"
+                    if st.session_state.selected_state != new_selection:
+                        st.session_state.selected_state = new_selection
+                        st.rerun()
 else:
     st.altair_chart(background, use_container_width=True)
     st.info("No data for selected filters.")
+
+# Clear state filter button
+if selected_state_code is not None:
+    if st.button("Clear state filter", type="secondary"):
+        st.session_state.selected_state = "All States"
+        st.rerun()
 
 # Topic distribution chart
 st.subheader("Recalls by Topic")

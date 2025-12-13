@@ -15,7 +15,6 @@ from data import (
     load_iowa_liquor_vendors,
 )
 
-st.set_page_config(page_title="Iowa Liquor Sales", layout="wide")
 st.title("Iowa Liquor Sales Analytics")
 
 st.markdown("""
@@ -254,37 +253,45 @@ with col2:
         },
     )
 
-# --- Category Distribution Pie ---
+# --- Category Distribution ---
 st.subheader("Sales Distribution by Category")
 
-# Get top 8 categories plus "Other"
-cat_totals = monthly_df.groupby("category_name")["total_sales"].sum().reset_index()
-cat_totals = cat_totals.sort_values("total_sales", ascending=False)
+# Aggregate total sales by category across all months
+cat_totals = (
+    monthly_df.groupby("category_name", as_index=False)
+    .agg({"total_sales": "sum"})
+    .sort_values("total_sales", ascending=False)
+)
 
-top_8 = cat_totals.head(8).copy()
-other_total = cat_totals.iloc[8:]["total_sales"].sum()
-other_row = pd.DataFrame([{"category_name": "Other", "total_sales": other_total}])
-pie_data = pd.concat([top_8, other_row], ignore_index=True)
+# Take top 10 categories
+top_cats = cat_totals.head(10).copy()
 
-pie_chart = (
-    alt.Chart(pie_data)
-    .mark_arc(innerRadius=50)
+# Calculate percentage share
+grand_total = cat_totals["total_sales"].sum()
+top_cats["pct"] = (top_cats["total_sales"] / grand_total * 100).round(1)
+top_cats["pct_label"] = top_cats["pct"].astype(str) + "%"
+
+dist_chart = (
+    alt.Chart(top_cats)
+    .mark_bar()
     .encode(
-        theta=alt.Theta("total_sales:Q", stack=True),
+        x=alt.X("total_sales:Q", title="Total Sales ($)", axis=alt.Axis(format="$,.0f")),
+        y=alt.Y("category_name:N", title="Category", sort="-x"),
         color=alt.Color(
-            "category_name:N",
-            title="Category",
-            scale=alt.Scale(scheme="category10"),
+            "total_sales:Q",
+            scale=alt.Scale(scheme="blues"),
+            legend=None,
         ),
         tooltip=[
             alt.Tooltip("category_name:N", title="Category"),
             alt.Tooltip("total_sales:Q", title="Sales", format="$,.0f"),
+            alt.Tooltip("pct:Q", title="Share %", format=".1f"),
         ],
     )
     .properties(height=400)
 )
 
-st.altair_chart(pie_chart, use_container_width=True)
+st.altair_chart(dist_chart, use_container_width=True)
 
 # --- Raw Data ---
 st.subheader("Monthly Data")

@@ -10,7 +10,6 @@ import streamlit as st
 
 from data import load_hn_weekly_stats, load_hn_domain_stats, load_hn_keyword_trends
 
-st.set_page_config(page_title="Hacker News Trends", layout="wide")
 st.title("Hacker News Trends")
 
 # Load data

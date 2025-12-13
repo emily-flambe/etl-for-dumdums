@@ -205,7 +205,10 @@ run-iowa-liquor: sync-iowa-liquor dbt-iowa-liquor
 # ---------- Streamlit app ----------
 
 app:
-	uv run streamlit run Summary.py
+	uv run streamlit run app.py
+
+app-public:
+	DEPLOYMENT_MODE=public uv run streamlit run app.py
 
 # ---------- Tests ----------
 

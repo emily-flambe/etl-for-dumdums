@@ -12,7 +12,6 @@ import streamlit as st
 
 from data import load_pull_requests, load_reviewer_activity
 
-st.set_page_config(page_title="GitHub PRs", layout="wide")
 st.title("GitHub Pull Requests")
 
 # Load data

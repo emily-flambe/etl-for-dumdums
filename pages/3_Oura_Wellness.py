@@ -10,7 +10,6 @@ import streamlit as st
 
 from data import load_oura_daily
 
-st.set_page_config(page_title="Oura Wellness", layout="wide")
 st.title("Oura Wellness")
 
 # Load data

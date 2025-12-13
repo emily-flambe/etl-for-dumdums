@@ -6,6 +6,8 @@ Multi-page Streamlit app for exploring data from Linear, GitHub, Oura, and more.
 Run with: make app
 """
 
+import os
+
 import streamlit as st
 
 from data import (
@@ -16,7 +18,10 @@ from data import (
     load_keyword_trends,
 )
 
-st.set_page_config(page_title="Summary", layout="wide")
+# Check deployment mode
+DEPLOYMENT_MODE = os.environ.get("DEPLOYMENT_MODE", "local")
+IS_PUBLIC = DEPLOYMENT_MODE == "public"
+
 st.title("Summary")
 
 st.markdown("Use the sidebar to navigate between pages.")
@@ -24,38 +29,40 @@ st.markdown("Use the sidebar to navigate between pages.")
 # Data freshness section
 st.subheader("Data Sources")
 
-# Linear
-st.markdown("#### Linear")
-try:
-    issues = load_issues()
-    latest_update = issues["updated_at"].max()
-    done_states = ["Done", "Done Pending Deployment"]
-    open_count = len(issues[~issues["state"].isin(done_states)])
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Last Sync", latest_update.strftime("%Y-%m-%d %H:%M") if latest_update else "N/A")
-    col2.metric("Total Issues", len(issues))
-    col3.metric("Open Issues", open_count)
-except Exception as e:
-    st.warning(f"Could not load Linear data: {e}")
+# Linear (private - hide in public mode)
+if not IS_PUBLIC:
+    st.markdown("#### Linear")
+    try:
+        issues = load_issues()
+        latest_update = issues["updated_at"].max()
+        done_states = ["Done", "Done Pending Deployment"]
+        open_count = len(issues[~issues["state"].isin(done_states)])
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Last Sync", latest_update.strftime("%Y-%m-%d %H:%M") if latest_update else "N/A")
+        col2.metric("Total Issues", len(issues))
+        col3.metric("Open Issues", open_count)
+    except Exception as e:
+        st.warning(f"Could not load Linear data: {e}")
 
-st.divider()
+    st.divider()
 
-# GitHub
-st.markdown("#### GitHub")
-try:
-    prs = load_pull_requests()
-    latest_update = prs["updated_at"].max()
-    open_count = len(prs[prs["state"] == "open"])
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Last Sync", latest_update.strftime("%Y-%m-%d %H:%M") if latest_update else "N/A")
-    col2.metric("Total PRs", len(prs))
-    col3.metric("Open PRs", open_count)
-except Exception as e:
-    st.warning(f"Could not load GitHub data: {e}")
+# GitHub (private - hide in public mode)
+if not IS_PUBLIC:
+    st.markdown("#### GitHub")
+    try:
+        prs = load_pull_requests()
+        latest_update = prs["updated_at"].max()
+        open_count = len(prs[prs["state"] == "open"])
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Last Sync", latest_update.strftime("%Y-%m-%d %H:%M") if latest_update else "N/A")
+        col2.metric("Total PRs", len(prs))
+        col3.metric("Open PRs", open_count)
+    except Exception as e:
+        st.warning(f"Could not load GitHub data: {e}")
 
-st.divider()
+    st.divider()
 
-# Oura
+# Oura (public)
 st.markdown("#### Oura")
 try:
     oura = load_oura_daily()
@@ -70,7 +77,7 @@ except Exception as e:
 
 st.divider()
 
-# Hacker News
+# Hacker News (public)
 st.markdown("#### Hacker News")
 try:
     hn = load_hn_weekly_stats()
@@ -86,7 +93,7 @@ except Exception as e:
 
 st.divider()
 
-# Google Trends
+# Google Trends (public)
 st.markdown("#### Google Trends")
 try:
     trends = load_keyword_trends()

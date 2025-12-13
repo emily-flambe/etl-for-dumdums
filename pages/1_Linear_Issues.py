@@ -10,7 +10,6 @@ import streamlit as st
 
 from data import load_issues
 
-st.set_page_config(page_title="Linear Issues", layout="wide")
 st.title("Linear Issues")
 
 # Load data

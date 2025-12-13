@@ -10,7 +10,6 @@ import streamlit as st
 
 from data import load_keyword_trends
 
-st.set_page_config(page_title="Google Trends", layout="wide")
 st.title("Google Trends")
 
 # Load data

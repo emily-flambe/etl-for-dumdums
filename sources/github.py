@@ -2,7 +2,11 @@
 GitHub data source.
 
 Fetches pull requests, reviews, comments, and users from GitHub REST API
-for the demexchange organization.
+for a configurable GitHub organization.
+
+Configure via environment variables:
+- GITHUB_ORG: Organization name (required)
+- GITHUB_REPOS: Comma-separated list of repo names (required)
 """
 
 import logging
@@ -23,13 +27,30 @@ logger = logging.getLogger(__name__)
 
 GITHUB_API_URL = "https://api.github.com"
 
-# Repositories to sync
-REPOS = [
-    "demexchange/ddx-data-pipeline",
-    "demexchange/snowflake-queries",
-]
 
-ORG_NAME = "demexchange"
+def get_org_name() -> str:
+    """Get GitHub organization name from environment."""
+    org = os.environ.get("GITHUB_ORG")
+    if not org:
+        raise ValueError("GITHUB_ORG environment variable is not set")
+    return org
+
+
+def get_repos() -> list[str]:
+    """Get list of repositories to sync from environment."""
+    repos_str = os.environ.get("GITHUB_REPOS")
+    if not repos_str:
+        raise ValueError("GITHUB_REPOS environment variable is not set")
+    org = get_org_name()
+    # Support both "repo1,repo2" and "org/repo1,org/repo2" formats
+    repos = []
+    for repo in repos_str.split(","):
+        repo = repo.strip()
+        if "/" in repo:
+            repos.append(repo)
+        else:
+            repos.append(f"{org}/{repo}")
+    return repos
 
 
 def get_token() -> str:

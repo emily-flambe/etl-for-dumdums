@@ -10,7 +10,6 @@ import streamlit as st
 
 from data import load_hn_keyword_sentiment
 
-st.set_page_config(page_title="HN Sentiment", layout="wide")
 st.title("Hacker News Sentiment Trends")
 
 st.markdown("""
