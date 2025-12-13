@@ -187,6 +187,58 @@ if has_code_data:
 else:
     st.info("No code volume data available. Re-run `make sync-github` to fetch additions/deletions.")
 
+# Leaderboards
+st.subheader("Leaderboards")
+col1, col2 = st.columns(2)
+
+with col1:
+    st.write("**PRs Reviewed by Teammate**")
+    # Count unique PRs each reviewer commented on (each PR counts once)
+    prs_reviewed = (
+        filtered_activity.groupby("reviewer_username")["pr_id"]
+        .nunique()
+        .reset_index(name="PRs Reviewed")
+        .sort_values("PRs Reviewed", ascending=False)
+    )
+    if len(prs_reviewed) > 0:
+        prs_reviewed.index = range(1, len(prs_reviewed) + 1)
+        prs_reviewed.index.name = "Rank"
+        st.dataframe(
+            prs_reviewed,
+            use_container_width=True,
+            column_config={
+                "reviewer_username": st.column_config.TextColumn("Reviewer"),
+                "PRs Reviewed": st.column_config.NumberColumn("PRs Reviewed"),
+            },
+        )
+    else:
+        st.info("No review activity in selected range")
+
+with col2:
+    st.write("**Avg Time to Merge by Author**")
+    # Average cycle time for merged PRs by author (ascending = fastest first)
+    merged_prs = filtered_prs[filtered_prs["merged_at"].notna() & filtered_prs["cycle_time_hours"].notna()]
+    time_to_merge = (
+        merged_prs.groupby("author_username")["cycle_time_hours"]
+        .mean()
+        .reset_index(name="Avg Hours to Merge")
+        .sort_values("Avg Hours to Merge", ascending=True)
+    )
+    if len(time_to_merge) > 0:
+        time_to_merge["Avg Hours to Merge"] = time_to_merge["Avg Hours to Merge"].round(1)
+        time_to_merge.index = range(1, len(time_to_merge) + 1)
+        time_to_merge.index.name = "Rank"
+        st.dataframe(
+            time_to_merge,
+            use_container_width=True,
+            column_config={
+                "author_username": st.column_config.TextColumn("Author"),
+                "Avg Hours to Merge": st.column_config.NumberColumn("Avg Hours"),
+            },
+        )
+    else:
+        st.info("No merged PRs in selected range")
+
 # Data table (collapsed by default)
 with st.expander("View PR Data"):
     display_df = filtered_prs.copy()
