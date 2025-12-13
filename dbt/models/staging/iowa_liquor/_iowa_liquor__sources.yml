@@ -1,0 +1,58 @@
+version: 2
+
+sources:
+  - name: iowa_liquor
+    database: "{{ env_var('GCP_PROJECT_ID') }}"
+    schema: iowa_liquor
+    tables:
+      - name: raw_sales
+        description: Raw Iowa liquor sales transactions synced from BigQuery public dataset
+        columns:
+          - name: invoice_and_item_number
+            description: Unique transaction line item identifier
+          - name: date
+            description: Date of sale
+          - name: store_number
+            description: Unique store identifier
+          - name: store_name
+            description: Name of the store
+          - name: address
+            description: Store street address
+          - name: city
+            description: City where store is located
+          - name: zip_code
+            description: Store ZIP code
+          - name: county
+            description: County where store is located
+          - name: category
+            description: Category code
+          - name: category_name
+            description: Name of liquor category (e.g., American Vodkas, Canadian Whiskies)
+          - name: vendor_number
+            description: Vendor/distributor identifier
+          - name: vendor_name
+            description: Name of vendor/distributor
+          - name: item_number
+            description: Product SKU
+          - name: item_description
+            description: Product name/description
+          - name: pack
+            description: Number of bottles per case
+          - name: bottle_volume_ml
+            description: Volume per bottle in milliliters
+          - name: state_bottle_cost
+            description: Wholesale cost per bottle (state pays to vendor)
+          - name: state_bottle_retail
+            description: Retail price per bottle (store pays to state)
+          - name: bottles_sold
+            description: Number of bottles sold in transaction
+          - name: sale_dollars
+            description: Total sale amount in dollars
+          - name: volume_sold_liters
+            description: Total volume sold in liters
+          - name: volume_sold_gallons
+            description: Total volume sold in gallons
+          - name: sale_month
+            description: First day of sale month (for aggregation)
+          - name: sale_year
+            description: Year of sale

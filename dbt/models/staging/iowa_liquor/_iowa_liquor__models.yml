@@ -1,0 +1,60 @@
+version: 2
+
+models:
+  - name: stg_iowa_liquor__sales
+    description: Staged Iowa liquor sales with cleaned column names
+    config:
+      schema: iowa_liquor
+      tags: ['iowa_liquor']
+    columns:
+      - name: sale_id
+        description: Unique transaction line item identifier
+        tests:
+          - unique
+          - not_null
+      - name: sale_date
+        description: Date of sale
+      - name: store_id
+        description: Unique store identifier
+      - name: store_name
+        description: Name of the store
+      - name: store_address
+        description: Store street address
+      - name: store_city
+        description: City where store is located
+      - name: store_zip
+        description: Store ZIP code
+      - name: county
+        description: County where store is located
+      - name: category_id
+        description: Category code
+      - name: category_name
+        description: Name of liquor category
+      - name: vendor_id
+        description: Vendor/distributor identifier
+      - name: vendor_name
+        description: Name of vendor/distributor
+      - name: item_id
+        description: Product SKU
+      - name: item_name
+        description: Product name/description
+      - name: pack_size
+        description: Number of bottles per case
+      - name: bottle_volume_ml
+        description: Volume per bottle in milliliters
+      - name: bottle_cost
+        description: Wholesale cost per bottle
+      - name: bottle_retail
+        description: Retail price per bottle
+      - name: bottles_sold
+        description: Number of bottles sold
+      - name: sale_dollars
+        description: Total sale amount in dollars
+      - name: volume_liters
+        description: Total volume sold in liters
+      - name: volume_gallons
+        description: Total volume sold in gallons
+      - name: sale_month
+        description: First day of sale month
+      - name: sale_year
+        description: Year of sale

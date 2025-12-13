@@ -245,11 +245,12 @@ class HNCommentsSource(Source):
         bigquery.SchemaField("author", "STRING"),
         bigquery.SchemaField("text", "STRING"),
         bigquery.SchemaField("posted_at", "TIMESTAMP"),
-        bigquery.SchemaField("posted_day", "DATE"),
+        bigquery.SchemaField("posted_month", "DATE"),
         # Sentiment fields (computed via Cloudflare Workers AI)
         bigquery.SchemaField("sentiment_score", "FLOAT"),
         bigquery.SchemaField("sentiment_label", "STRING"),
         bigquery.SchemaField("sentiment_category", "STRING"),
+        bigquery.SchemaField("posted_day", "DATE"),
     ]
 
     def __init__(self, lookback_days: int = DEFAULT_COMMENTS_LOOKBACK_DAYS, top_stories_per_day: int = DEFAULT_TOP_STORIES_PER_DAY):
@@ -295,6 +296,7 @@ class HNCommentsSource(Source):
             c.`by` as author,
             c.text,
             c.`timestamp` as posted_at,
+            DATE_TRUNC(DATE(c.`timestamp`), MONTH) as posted_month,
             DATE(c.`timestamp`) as posted_day
         FROM `bigquery-public-data.hacker_news.full` c
         JOIN top_stories ts ON c.parent = ts.id
@@ -325,6 +327,7 @@ class HNCommentsSource(Source):
                 "author": row.author,
                 "text": row.text,
                 "posted_at": row.posted_at.isoformat() if row.posted_at else None,
+                "posted_month": row.posted_month.isoformat() if row.posted_month else None,
                 "posted_day": row.posted_day.isoformat() if row.posted_day else None,
             })
 

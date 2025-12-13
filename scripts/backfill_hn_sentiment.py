@@ -181,6 +181,7 @@ def fetch_comments_for_date_range(
         c.`by` as author,
         c.text,
         c.`timestamp` as posted_at,
+        DATE_TRUNC(DATE(c.`timestamp`), MONTH) as posted_month,
         DATE(c.`timestamp`) as posted_day
     FROM `bigquery-public-data.hacker_news.full` c
     JOIN top_stories ts ON c.parent = ts.id
@@ -212,6 +213,7 @@ def fetch_comments_for_date_range(
             "author": row.author,
             "text": row.text,
             "posted_at": row.posted_at.isoformat() if row.posted_at else None,
+            "posted_month": row.posted_month.isoformat() if row.posted_month else None,
             "posted_day": row.posted_day.isoformat() if row.posted_day else None,
         })
 
@@ -254,6 +256,7 @@ def load_comments_to_bigquery(rows: list[dict]):
             author = S.author,
             text = S.text,
             posted_at = S.posted_at,
+            posted_month = S.posted_month,
             posted_day = S.posted_day,
             sentiment_score = S.sentiment_score,
             sentiment_label = S.sentiment_label,

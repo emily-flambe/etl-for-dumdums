@@ -195,3 +195,39 @@ def load_fda_recall_topics():
     ORDER BY recall_initiation_date DESC
     """
     return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_iowa_liquor_monthly():
+    """Load Iowa liquor sales by month and category from BigQuery."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM iowa_liquor.fct_sales_monthly
+    ORDER BY sale_month DESC, total_sales DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_iowa_liquor_by_county():
+    """Load Iowa liquor sales by county from BigQuery."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM iowa_liquor.fct_sales_by_county
+    ORDER BY total_sales DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_iowa_liquor_vendors():
+    """Load top Iowa liquor vendors from BigQuery."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM iowa_liquor.fct_top_vendors
+    ORDER BY total_sales DESC
+    """
+    return client.query(query).to_dataframe()

@@ -1,0 +1,81 @@
+version: 2
+
+models:
+  - name: fct_sales_monthly
+    description: Monthly Iowa liquor sales aggregated by category
+    config:
+      schema: iowa_liquor
+      tags: ['iowa_liquor']
+    columns:
+      - name: sale_month
+        description: First day of the month
+        tests:
+          - not_null
+      - name: category_name
+        description: Liquor category name
+        tests:
+          - not_null
+      - name: total_sales
+        description: Total sales in dollars
+      - name: total_bottles
+        description: Total bottles sold
+      - name: total_volume_liters
+        description: Total volume sold in liters
+      - name: transaction_count
+        description: Number of transactions
+      - name: avg_bottle_price
+        description: Average retail price per bottle
+      - name: store_count
+        description: Number of unique stores selling this category
+
+  - name: fct_sales_by_county
+    description: Iowa liquor sales aggregated by county
+    config:
+      schema: iowa_liquor
+      tags: ['iowa_liquor']
+    columns:
+      - name: county
+        description: Iowa county name
+        tests:
+          - not_null
+          - unique
+      - name: total_sales
+        description: Total sales in dollars
+      - name: total_bottles
+        description: Total bottles sold
+      - name: total_volume_liters
+        description: Total volume sold in liters
+      - name: transaction_count
+        description: Number of transactions
+      - name: store_count
+        description: Number of unique stores
+      - name: top_category
+        description: Most popular category by sales
+      - name: avg_transaction_value
+        description: Average transaction value
+
+  - name: fct_top_vendors
+    description: Top liquor vendors by sales performance
+    config:
+      schema: iowa_liquor
+      tags: ['iowa_liquor']
+    columns:
+      - name: vendor_name
+        description: Vendor/distributor name
+        tests:
+          - not_null
+          - unique
+      - name: total_sales
+        description: Total sales in dollars
+      - name: total_bottles
+        description: Total bottles sold
+      - name: total_volume_liters
+        description: Total volume sold in liters
+      - name: product_count
+        description: Number of unique products
+      - name: store_count
+        description: Number of stores carrying products
+      - name: top_product
+        description: Best selling product
+      - name: avg_bottle_price
+        description: Average bottle retail price
