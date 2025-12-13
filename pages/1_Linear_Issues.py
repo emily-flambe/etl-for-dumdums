@@ -182,7 +182,7 @@ if len(sdlc_data) > 0:
 
     # Chart 1: Percentage stacked bar
     pct_chart = alt.Chart(sdlc_agg).mark_bar().encode(
-        x=alt.X("cycle_label:N", title="", sort=cycle_sort_order, axis=alt.Axis(labelAngle=0)),
+        x=alt.X("cycle_label:N", title="", sort=cycle_sort_order, axis=alt.Axis(labelAngle=0, labelLimit=0, labelExpr="split(datum.label, '\\n')")),
         y=alt.Y("pct:Q", title="% of Total Estimate", stack="normalize", axis=alt.Axis(format=".0%")),
         color=alt.Color(
             "labels:N",
@@ -205,7 +205,7 @@ if len(sdlc_data) > 0:
 
     # Chart 2: Absolute estimate stacked bar
     abs_chart = alt.Chart(sdlc_agg).mark_bar().encode(
-        x=alt.X("cycle_label:N", title="", sort=cycle_sort_order, axis=alt.Axis(labelAngle=0)),
+        x=alt.X("cycle_label:N", title="", sort=cycle_sort_order, axis=alt.Axis(labelAngle=0, labelLimit=0, labelExpr="split(datum.label, '\\n')")),
         y=alt.Y("estimate:Q", title="Estimate", stack=True),
         color=alt.Color(
             "labels:N",
