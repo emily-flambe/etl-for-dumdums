@@ -131,6 +131,25 @@ weekly_cycle = (
 weekly_cycle = weekly_cycle.rename(columns={"merged_week": "week"})
 weekly_cycle = weekly_cycle.sort_values("week")
 
+# Weekly time to first review (approval)
+weekly_review = (
+    filtered_prs[filtered_prs["time_to_first_review_hours"].notna()]
+    .groupby("week")["time_to_first_review_hours"]
+    .mean()
+    .reset_index(name="Avg Time to Approval (hours)")
+)
+weekly_review = weekly_review.sort_values("week")
+
+# Weekly time to first comment
+filtered_activity["week"] = filtered_activity["pr_created_at"].dt.to_period("W").dt.start_time
+weekly_comment = (
+    filtered_activity[filtered_activity["time_to_first_comment_hours"].notna()]
+    .groupby("week")["time_to_first_comment_hours"]
+    .mean()
+    .reset_index(name="Avg Time to First Comment (hours)")
+)
+weekly_comment = weekly_comment.sort_values("week")
+
 # Weekly code volume
 weekly_code = (
     filtered_prs.groupby("week")
@@ -161,6 +180,26 @@ if len(weekly_cycle) > 0:
         tooltip=[alt.Tooltip("week:T", format="%b %d, %Y"), "Avg Cycle Time (hours):Q"],
     ).properties(height=200)
     st.altair_chart(cycle_chart, use_container_width=True)
+
+# Time to Approval Chart
+if len(weekly_review) > 0:
+    st.write("**Average Time to Approval (Weekly)**")
+    review_chart = alt.Chart(weekly_review).mark_line(point=True, color="#22c55e").encode(
+        x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d", values=weekly_review["week"].tolist())),
+        y=alt.Y("Avg Time to Approval (hours):Q", title="Hours"),
+        tooltip=[alt.Tooltip("week:T", format="%b %d, %Y"), "Avg Time to Approval (hours):Q"],
+    ).properties(height=200)
+    st.altair_chart(review_chart, use_container_width=True)
+
+# Time to First Comment Chart
+if len(weekly_comment) > 0:
+    st.write("**Average Time to First Comment (Weekly)**")
+    comment_chart = alt.Chart(weekly_comment).mark_line(point=True, color="#6366f1").encode(
+        x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d", values=weekly_comment["week"].tolist())),
+        y=alt.Y("Avg Time to First Comment (hours):Q", title="Hours"),
+        tooltip=[alt.Tooltip("week:T", format="%b %d, %Y"), "Avg Time to First Comment (hours):Q"],
+    ).properties(height=200)
+    st.altair_chart(comment_chart, use_container_width=True)
 
 # Code Volume Chart
 st.write("**Code Volume Over Time (Weekly)**")
@@ -195,7 +234,7 @@ with col1:
     st.write("**PRs Reviewed by Teammate**")
     # Count unique PRs each reviewer commented on (each PR counts once)
     prs_reviewed = (
-        filtered_activity.groupby("reviewer_username")["pr_id"]
+        filtered_activity.groupby("reviewer_username")["pull_request_id"]
         .nunique()
         .reset_index(name="PRs Reviewed")
         .sort_values("PRs Reviewed", ascending=False)
