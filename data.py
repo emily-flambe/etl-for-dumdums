@@ -36,6 +36,7 @@ def load_issues():
         assignee_name,
         cycle_name,
         cycle_starts_at,
+        cycle_ends_at,
         labels,
         project_name,
         days_since_created,
@@ -143,6 +144,6 @@ def load_hn_keyword_sentiment():
     query = """
     SELECT *
     FROM hacker_news.fct_hn_keyword_sentiment
-    ORDER BY month DESC, comment_count DESC
+    ORDER BY week DESC, comment_count DESC
     """
     return client.query(query).to_dataframe()

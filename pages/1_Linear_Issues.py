@@ -134,6 +134,100 @@ with st.container():
     cycle_completed = cycle_completed.sort_values("cycle_starts_at")
     st.bar_chart(cycle_completed, x="cycle_name", y="Points", x_label="Cycle", y_label="Points")
 
+# SDLC Label Breakdown by Cycle
+st.subheader("How do Exchange Engineers Spend Their Time?")
+
+# Extract SDLC labels from issues
+sdlc_labels = ["SDLC:Drudgery", "SDLC:InternalSupport", "SDLC:QualityDebt", "SDLC:NewStuff"]
+sdlc_colors = {
+    "SDLC:Drudgery": "#9ca3af",
+    "SDLC:InternalSupport": "#14b8a6",
+    "SDLC:QualityDebt": "#f97316",
+    "SDLC:NewStuff": "#6366f1",
+}
+
+# Explode labels and filter for SDLC labels
+sdlc_data = filtered[filtered["cycle_name"].notna() & filtered["estimate"].notna()].copy()
+sdlc_data = sdlc_data.explode("labels")
+sdlc_data = sdlc_data[sdlc_data["labels"].isin(sdlc_labels)]
+
+if len(sdlc_data) > 0:
+    # Create cycle display label with dates
+    cycle_info = (
+        sdlc_data[["cycle_name", "cycle_starts_at", "cycle_ends_at"]]
+        .drop_duplicates()
+        .dropna()
+    )
+    cycle_info["cycle_label"] = cycle_info.apply(
+        lambda r: f"{r['cycle_name']}\n({r['cycle_starts_at'].strftime('%Y-%m-%d')} - {r['cycle_ends_at'].strftime('%Y-%m-%d')})",
+        axis=1,
+    )
+    cycle_label_map = dict(zip(cycle_info["cycle_name"], cycle_info["cycle_label"]))
+    cycle_sort_order = cycle_info.sort_values("cycle_starts_at")["cycle_label"].tolist()
+
+    # Aggregate by cycle and SDLC label
+    sdlc_agg = (
+        sdlc_data.groupby(["cycle_name", "labels"])["estimate"]
+        .sum()
+        .reset_index(name="estimate")
+    )
+    sdlc_agg["cycle_label"] = sdlc_agg["cycle_name"].map(cycle_label_map)
+    sdlc_agg = sdlc_agg.dropna(subset=["cycle_label"])
+
+    # Calculate percentages per cycle
+    cycle_totals = sdlc_agg.groupby("cycle_label")["estimate"].sum().reset_index(name="total")
+    sdlc_agg = sdlc_agg.merge(cycle_totals, on="cycle_label")
+    sdlc_agg["pct"] = (sdlc_agg["estimate"] / sdlc_agg["total"] * 100).round(0).astype(int)
+    sdlc_agg["pct_label"] = sdlc_agg["pct"].astype(str) + "%"
+
+    # Chart 1: Percentage stacked bar
+    pct_chart = alt.Chart(sdlc_agg).mark_bar().encode(
+        x=alt.X("cycle_label:N", title="", sort=cycle_sort_order, axis=alt.Axis(labelAngle=0)),
+        y=alt.Y("pct:Q", title="% of Total Estimate", stack="normalize", axis=alt.Axis(format=".0%")),
+        color=alt.Color(
+            "labels:N",
+            title="SDLC Label",
+            scale=alt.Scale(domain=sdlc_labels, range=[sdlc_colors[l] for l in sdlc_labels]),
+            sort=sdlc_labels,
+        ),
+        order=alt.Order("labels:N", sort="descending"),
+        tooltip=["cycle_label:N", "labels:N", "estimate:Q", "pct_label:N"],
+    ).properties(height=350)
+
+    pct_text = alt.Chart(sdlc_agg).mark_text(dy=0, color="white", fontSize=11).encode(
+        x=alt.X("cycle_label:N", sort=cycle_sort_order),
+        y=alt.Y("pct:Q", stack="normalize", bandPosition=0.5),
+        text="pct_label:N",
+        order=alt.Order("labels:N", sort="descending"),
+    )
+
+    st.altair_chart(pct_chart + pct_text, use_container_width=True)
+
+    # Chart 2: Absolute estimate stacked bar
+    abs_chart = alt.Chart(sdlc_agg).mark_bar().encode(
+        x=alt.X("cycle_label:N", title="", sort=cycle_sort_order, axis=alt.Axis(labelAngle=0)),
+        y=alt.Y("estimate:Q", title="Estimate", stack=True),
+        color=alt.Color(
+            "labels:N",
+            title="SDLC Label",
+            scale=alt.Scale(domain=sdlc_labels, range=[sdlc_colors[l] for l in sdlc_labels]),
+            sort=sdlc_labels,
+        ),
+        order=alt.Order("labels:N", sort="descending"),
+        tooltip=["cycle_label:N", "labels:N", "estimate:Q"],
+    ).properties(height=350)
+
+    abs_text = alt.Chart(sdlc_agg).mark_text(dy=0, color="white", fontSize=11).encode(
+        x=alt.X("cycle_label:N", sort=cycle_sort_order),
+        y=alt.Y("estimate:Q", stack=True, bandPosition=0.5),
+        text=alt.Text("estimate:Q", format=".0f"),
+        order=alt.Order("labels:N", sort="descending"),
+    )
+
+    st.altair_chart(abs_chart + abs_text, use_container_width=True)
+else:
+    st.info("No issues with SDLC labels found in the selected filters.")
+
 # Data table
 st.subheader("Issues")
 
