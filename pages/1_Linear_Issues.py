@@ -103,11 +103,17 @@ col8.metric("Avg Days Open", f"{filtered['days_since_created'].mean():.0f}")
 # Charts row
 st.subheader("Charts")
 
-st.write("**Points by Assignee (by Cycle)**")
+st.write("**Points Completed by Assignee (by Cycle)**")
+
+# Filter to completed issues with assigned owners
+done_states = ["Done", "Done Pending Deployment"]
+completed_assigned = filtered[
+    (filtered["state"].isin(done_states)) & (filtered["assignee_name"].notna())
+].copy()
 
 # Get top assignees by total points for color consistency
 top_assignees = (
-    filtered.groupby(filtered["assignee_name"].fillna("Unassigned"))["estimate"]
+    completed_assigned.groupby("assignee_name")["estimate"]
     .sum()
     .sort_values(ascending=False)
     .head(10)
@@ -115,10 +121,9 @@ top_assignees = (
 )
 
 # Filter to top assignees and aggregate by cycle
-assignee_cycle = filtered[filtered["assignee_name"].fillna("Unassigned").isin(top_assignees)].copy()
-assignee_cycle["assignee_display"] = assignee_cycle["assignee_name"].fillna("Unassigned")
+assignee_cycle = completed_assigned[completed_assigned["assignee_name"].isin(top_assignees)].copy()
 assignee_cycle = (
-    assignee_cycle.groupby(["cycle_name", "cycle_starts_at", "assignee_display"])["estimate"]
+    assignee_cycle.groupby(["cycle_name", "cycle_starts_at", "assignee_name"])["estimate"]
     .sum()
     .reset_index(name="Points")
 )
@@ -132,12 +137,12 @@ if len(assignee_cycle) > 0:
     chart = alt.Chart(assignee_cycle).mark_line(point=True).encode(
         x=alt.X("cycle_name:N", title="Cycle", sort=cycle_order),
         y=alt.Y("Points:Q", title="Points"),
-        color=alt.Color("assignee_display:N", title="Assignee", sort=top_assignees),
-        tooltip=["cycle_name:N", "assignee_display:N", "Points:Q"],
+        color=alt.Color("assignee_name:N", title="Assignee", sort=top_assignees),
+        tooltip=["cycle_name:N", "assignee_name:N", "Points:Q"],
     ).properties(height=300)
     st.altair_chart(chart, use_container_width=True)
 else:
-    st.info("No data available for trend chart")
+    st.info("No completed issues with assignees in selected filters")
 
 # Second charts row
 with st.container():
