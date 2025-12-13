@@ -177,13 +177,13 @@ weekly_code = weekly_code.sort_values("week")
 # Charts
 st.subheader("Trends")
 
-# PR Activity Chart - just show PRs opened per week
-st.write("**PRs Opened Per Week**")
-opened_weeks = weekly_opened["week"].sort_values().tolist()
-activity_chart = alt.Chart(weekly_opened).mark_bar(color="#6366f1", size=20).encode(
-    x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d", values=opened_weeks)),
-    y=alt.Y("PRs Opened:Q", title="PRs"),
-    tooltip=[alt.Tooltip("week:T", format="%b %d, %Y"), "PRs Opened:Q"],
+# PR Activity Chart - show PRs merged per week
+st.write("**PRs Merged Per Week**")
+merged_weeks = weekly_merged["week"].sort_values().tolist()
+activity_chart = alt.Chart(weekly_merged).mark_bar(color="#6366f1", size=20).encode(
+    x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d", values=merged_weeks)),
+    y=alt.Y("PRs Merged:Q", title="PRs"),
+    tooltip=[alt.Tooltip("week:T", format="%b %d, %Y"), "PRs Merged:Q"],
 ).properties(height=250)
 st.altair_chart(activity_chart, use_container_width=True)
 
