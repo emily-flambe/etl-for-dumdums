@@ -31,3 +31,35 @@ models:
         description: Month of recall initiation (for time series)
       - name: recall_week
         description: Week of recall initiation (Monday start)
+
+  - name: stg_fda__food_events
+    description: Staged FDA food adverse event reports with cleaned column names
+    config:
+      schema: fda_food
+      tags: ['fda_food']
+    columns:
+      - name: report_number
+        description: Unique report identifier
+        tests:
+          - unique
+          - not_null
+      - name: reactions
+        description: Comma-separated adverse reactions (e.g., "DIARRHOEA, VOMITING")
+      - name: outcomes
+        description: Medical outcomes (e.g., "Hospitalization")
+      - name: brand_name
+        description: Product brand name
+      - name: industry_name
+        description: Product industry category
+      - name: product_role
+        description: Product role (Suspect, Concomitant)
+      - name: report_date
+        description: Date report was created
+      - name: event_date
+        description: Date of event (symptom start or report date)
+      - name: gender
+        description: Consumer gender (Female/Male)
+      - name: age
+        description: Consumer age value
+      - name: age_unit
+        description: Age unit (year(s), month(s), etc.)

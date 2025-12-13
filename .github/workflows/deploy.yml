@@ -1,0 +1,97 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app.py'
+      - 'Summary.py'
+      - 'data.py'
+      - 'pages/**'
+      - 'lib/**'
+      - 'sources/**'
+      - 'Dockerfile'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
+  SERVICE_NAME: etl-dashboard
+  ARTIFACT_REGISTRY_LOCATION: us-central1
+  ARTIFACT_REGISTRY_REPO: cloud-run-apps
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Write GCP credentials to file
+        run: |
+          echo "${{ secrets.GCP_SA_KEY }}" | base64 -d > /tmp/gcp-key.json
+
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev --quiet
+
+      - name: Create Artifact Registry repository (if not exists)
+        run: |
+          gcloud artifacts repositories describe ${ARTIFACT_REGISTRY_REPO} \
+              --location=${ARTIFACT_REGISTRY_LOCATION} \
+              --project=${PROJECT_ID} >/dev/null 2>&1 || \
+          gcloud artifacts repositories create ${ARTIFACT_REGISTRY_REPO} \
+              --repository-format=docker \
+              --location=${ARTIFACT_REGISTRY_LOCATION} \
+              --description="Docker repository for Cloud Run apps" \
+              --project=${PROJECT_ID}
+
+      - name: Build Docker image
+        run: |
+          IMAGE="${ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/${SERVICE_NAME}"
+          docker build --platform linux/amd64 -t ${IMAGE}:${{ github.sha }} -t ${IMAGE}:latest .
+
+      - name: Push Docker image
+        run: |
+          IMAGE="${ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/${SERVICE_NAME}"
+          docker push ${IMAGE}:${{ github.sha }}
+          docker push ${IMAGE}:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          IMAGE="${ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/${SERVICE_NAME}"
+          gcloud run deploy ${SERVICE_NAME} \
+              --image ${IMAGE}:${{ github.sha }} \
+              --platform managed \
+              --region ${REGION} \
+              --allow-unauthenticated \
+              --port 8080 \
+              --memory 1Gi \
+              --cpu 1 \
+              --timeout 300 \
+              --set-env-vars "DEPLOYMENT_MODE=public,GCP_PROJECT_ID=${PROJECT_ID},GCP_SA_KEY_FILE=/secrets/gcp-sa-key/credentials.json" \
+              --set-secrets "/secrets/gcp-sa-key/credentials.json=etl-dashboard-gcp-sa:latest" \
+              --project ${PROJECT_ID}
+
+      - name: Show service URL
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${SERVICE_NAME} \
+              --platform managed \
+              --region ${REGION} \
+              --project ${PROJECT_ID} \
+              --format 'value(status.url)')
+          echo "Service deployed to: ${SERVICE_URL}"

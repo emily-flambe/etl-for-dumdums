@@ -57,3 +57,36 @@ models:
         description: True if labeling/misbranding issue detected
       - name: is_temperature
         description: True if temperature abuse issue detected
+
+  - name: int_fda__food_event_reactions
+    description: |
+      Categorizes FDA food adverse events by reaction type using regex pattern matching.
+      Each event can have multiple reaction categories (stored as array). Includes rollup
+      flags for major reaction groups (gastrointestinal, allergic, respiratory, etc.)
+    config:
+      schema: fda_food
+      tags: ['fda_food']
+    columns:
+      - name: report_number
+        description: Unique report identifier
+        tests:
+          - unique
+          - not_null
+      - name: reactions
+        description: Original comma-separated reactions text
+      - name: reaction_categories
+        description: Array of matched reaction category names
+      - name: reaction_count
+        description: Number of reaction categories matched
+      - name: has_gastrointestinal
+        description: True if any gastrointestinal reaction (diarrhea, vomiting, nausea, etc.)
+      - name: has_allergic
+        description: True if any allergic reaction (hypersensitivity, rash, hives, etc.)
+      - name: has_respiratory
+        description: True if any respiratory reaction (breathing difficulty, choking, etc.)
+      - name: has_cardiovascular
+        description: True if any cardiovascular reaction (chest pain, palpitations, etc.)
+      - name: has_neurological
+        description: True if any neurological reaction (headache, dizziness, etc.)
+      - name: has_systemic
+        description: True if any systemic reaction (malaise, fatigue, fever, etc.)

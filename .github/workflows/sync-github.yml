@@ -29,6 +29,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          ORGANIZATION: ${{ secrets.ORGANIZATION }}
+          REPOSITORIES: ${{ secrets.REPOSITORIES }}
         run: uv run python scripts/sync_github.py
 
   dbt:

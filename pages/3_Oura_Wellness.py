@@ -12,6 +12,24 @@ from data import load_oura_daily
 
 st.title("Oura Wellness")
 
+st.markdown("""
+Personal health and wellness data from the [Oura Ring](https://ouraring.com/), a wearable device
+that tracks sleep, activity, and readiness metrics using sensors that measure heart rate,
+heart rate variability (HRV), body temperature, and movement.
+
+**About the Data:**
+- **Source:** [Oura API V2](https://cloud.ouraring.com/v2/docs) via Personal Access Token
+- **Metrics:** Sleep scores, readiness scores, activity scores, steps, calories, and more
+- **Update Frequency:** Synced daily from personal Oura account
+
+**Score Categories:**
+- **Sleep Score:** Overall sleep quality (0-100) based on sleep stages, timing, and efficiency
+- **Readiness Score:** How recovered your body is and ready for strain (0-100)
+- **Activity Score:** Daily movement and exercise levels (0-100)
+
+*Note: This is personal data from a single Oura Ring user, not aggregated population data.*
+""")
+
 # Load data
 df = load_oura_daily()
 

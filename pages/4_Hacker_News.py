@@ -12,6 +12,23 @@ from data import load_hn_weekly_stats, load_hn_domain_stats, load_hn_keyword_tre
 
 st.title("Hacker News Trends")
 
+st.markdown("""
+Trend analysis of stories posted to [Hacker News](https://news.ycombinator.com/), the tech-focused
+social news website run by Y Combinator. Tracks weekly story volumes, popular domains, and
+technology keyword mentions over time.
+
+**About the Data:**
+- **Source:** [BigQuery Public Dataset](https://console.cloud.google.com/bigquery?p=bigquery-public-data&d=hacker_news)
+  (`bigquery-public-data.hacker_news.full`)
+- **Coverage:** All stories and comments since HN launch in 2006 to present
+- **Updates:** Daily from the official Hacker News API
+
+**What's Tracked:**
+- **Weekly Stats:** Story counts, average scores, and comment volumes
+- **Domain Trends:** Most linked domains by week (github.com, medium.com, etc.)
+- **Keyword Trends:** Mentions of technology terms (AI, React, Rust, etc.) in story titles
+""")
+
 # Load data
 weekly_stats = load_hn_weekly_stats()
 domain_stats = load_hn_domain_stats()

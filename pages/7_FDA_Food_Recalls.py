@@ -15,8 +15,22 @@ from data import load_fda_recalls_by_state, load_fda_recalls_by_topic, load_fda_
 st.title("FDA Food Recalls")
 
 st.markdown("""
-Geographic distribution of FDA food enforcement recalls across US states.
-Data includes recalls initiated from January 2025 onwards.
+This dashboard visualizes FDA food enforcement recalls across US states. The data comes from
+the [FDA Recall Enterprise System (RES)](https://open.fda.gov/apis/food/enforcement/),
+which tracks voluntary and mandated recalls of food products that may be defective or potentially harmful.
+
+**About the Data:**
+- **Source:** [BigQuery Public Dataset](https://console.cloud.google.com/bigquery?p=bigquery-public-data&d=fda_food&t=food_enforcement)
+  (`bigquery-public-data.fda_food.food_enforcement`)
+- **Coverage:** 2004-present (this dashboard filters to 2025 onwards)
+- **Updates:** Weekly from FDA
+
+**Recall Classifications:**
+- **Class I:** Dangerous or defective products that could cause serious health problems or death
+- **Class II:** Products that might cause a temporary health problem or pose a slight threat of a serious nature
+- **Class III:** Products unlikely to cause adverse health consequences
+
+*Note: Most recalls are voluntary actions by companies. The FDA monitors and classifies all recalls by hazard level.*
 """)
 
 # Load data
@@ -227,7 +241,6 @@ col4.metric("States Affected", f"{states_affected}")
 
 # US Map
 st.subheader("Recall Distribution by State")
-st.caption("Click a state to filter, or use the State dropdown in the sidebar")
 
 # Load US states geography
 states_geo = alt.topo_feature(vega_data.us_10m.url, "states")
@@ -245,12 +258,11 @@ background = alt.Chart(states_geo).mark_geoshape(
     height=500
 )
 
-# Choropleth layer with recall data and click selection
+# Choropleth layer with recall data
 if not filtered_by_state.empty:
     choropleth = alt.Chart(states_geo).mark_geoshape(
         stroke="white",
         strokeWidth=0.5,
-        cursor="pointer",
     ).encode(
         color=alt.Color(
             "total_recalls:Q",
@@ -275,38 +287,10 @@ if not filtered_by_state.empty:
         height=500
     )
 
-    # Render map with selection support
-    map_selection = st.altair_chart(
-        background + choropleth,
-        use_container_width=True,
-        on_select="rerun",
-        selection_mode="point",
-    )
-
-    # Handle map click selection
-    if map_selection and map_selection.selection and "param_1" in map_selection.selection:
-        selected_points = map_selection.selection.get("param_1", [])
-        if selected_points:
-            # Get the FIPS id from selection and find matching state
-            selected_id = selected_points[0].get("id") if isinstance(selected_points[0], dict) else None
-            if selected_id:
-                # Find the state code for this FIPS id
-                matching_state = filtered_by_state[filtered_by_state["id"] == selected_id]
-                if not matching_state.empty:
-                    clicked_state_code = matching_state.iloc[0]["state_code"]
-                    new_selection = f"{clicked_state_code} - {state_names_map.get(clicked_state_code, clicked_state_code)}"
-                    if st.session_state.selected_state != new_selection:
-                        st.session_state.selected_state = new_selection
-                        st.rerun()
+    st.altair_chart(background + choropleth, use_container_width=True)
 else:
     st.altair_chart(background, use_container_width=True)
     st.info("No data for selected filters.")
-
-# Clear state filter button
-if selected_state_code is not None:
-    if st.button("Clear state filter", type="secondary"):
-        st.session_state.selected_state = "All States"
-        st.rerun()
 
 # Topic distribution chart
 st.subheader("Recalls by Topic")

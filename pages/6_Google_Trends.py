@@ -12,6 +12,25 @@ from data import load_keyword_trends
 
 st.title("Google Trends")
 
+st.markdown("""
+Search interest data from [Google Trends](https://trends.google.com/), showing how often
+specific keywords are searched relative to total search volume over time.
+
+**About the Data:**
+- **Source:** [Google Trends](https://trends.google.com/) via
+  [pytrends](https://github.com/GeneralMills/pytrends) (unofficial API)
+- **Metric:** Interest score (0-100) where 100 = peak popularity for that term
+- **Updates:** Synced periodically based on configured keywords
+
+**Understanding Interest Scores:**
+- Scores are **relative**, not absolute search counts
+- 100 = highest point of popularity in the selected timeframe
+- 50 = half as popular as the peak
+- 0 = insufficient data for that period
+
+*Note: Google Trends data represents search interest, not actual usage or market share.*
+""")
+
 # Load data
 try:
     df = load_keyword_trends()

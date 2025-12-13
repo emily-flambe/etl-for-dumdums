@@ -231,3 +231,51 @@ def load_iowa_liquor_vendors():
     ORDER BY total_sales DESC
     """
     return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_fda_events_by_reaction():
+    """Load FDA food adverse events aggregated by reaction category."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM fda_food.fct_fda_events_by_reaction
+    ORDER BY event_count DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_fda_events_by_product():
+    """Load FDA food adverse events aggregated by product industry."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM fda_food.fct_fda_events_by_product
+    ORDER BY event_count DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_fda_events_monthly():
+    """Load FDA food adverse events monthly trends."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM fda_food.fct_fda_events_monthly
+    ORDER BY month DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_fda_event_reactions():
+    """Load FDA food events with reaction categorization."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM fda_food.int_fda__food_event_reactions
+    ORDER BY event_date DESC
+    """
+    return client.query(query).to_dataframe()

@@ -18,8 +18,23 @@ from data import (
 st.title("Iowa Liquor Sales Analytics")
 
 st.markdown("""
-Analysis of liquor sales transactions from Iowa state. Data sourced from the
-BigQuery public dataset `bigquery-public-data.iowa_liquor_sales.sales`.
+Analysis of wholesale liquor purchases in the State of Iowa. The state controls wholesale
+distribution of liquor for retail sale, making this a complete record of all retail liquor
+sales statewide.
+
+**About the Data:**
+- **Source:** [Iowa Alcoholic Beverages Division](https://data.iowa.gov/Sales-Distribution/Iowa-Liquor-Sales/m3tr-qhgy)
+  via [BigQuery Public Dataset](https://console.cloud.google.com/bigquery?p=bigquery-public-data&d=iowa_liquor_sales)
+  (`bigquery-public-data.iowa_liquor_sales.sales`)
+- **Coverage:** January 2012 to present (28+ million transactions)
+- **Updates:** Regularly updated by the Iowa Department of Commerce
+
+**What's Included:**
+- Every wholesale purchase by Class "E" liquor licensees (grocery stores, liquor stores, convenience stores)
+- Store location, product details, brand, vendor, and transaction amounts
+- Bottle counts, volume in liters, and dollar amounts
+
+*Note: This represents wholesale purchases by retailers, not individual consumer transactions.*
 """)
 
 # Load all data

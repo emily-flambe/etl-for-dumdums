@@ -65,3 +65,74 @@ models:
         description: Date of earliest recall for this topic
       - name: latest_recall
         description: Date of most recent recall for this topic
+
+  - name: fct_fda_events_by_reaction
+    description: FDA food adverse events aggregated by reaction category
+    config:
+      schema: fda_food
+      tags: ['fda_food']
+    columns:
+      - name: reaction
+        description: Reaction category name (e.g., Diarrhea, Vomiting, Nausea)
+        tests:
+          - unique
+          - not_null
+      - name: event_count
+        description: Number of events with this reaction
+      - name: female_count
+        description: Count of female consumers
+      - name: male_count
+        description: Count of male consumers
+      - name: hospitalization_count
+        description: Count of events resulting in hospitalization
+      - name: death_count
+        description: Count of events resulting in death
+      - name: hospitalization_pct
+        description: Percentage of events resulting in hospitalization
+
+  - name: fct_fda_events_by_product
+    description: FDA food adverse events aggregated by product industry
+    config:
+      schema: fda_food
+      tags: ['fda_food']
+    columns:
+      - name: industry_name
+        description: Product industry category
+        tests:
+          - unique
+          - not_null
+      - name: event_count
+        description: Number of events for products in this industry
+      - name: gastrointestinal_count
+        description: Events with gastrointestinal reactions
+      - name: allergic_count
+        description: Events with allergic reactions
+      - name: respiratory_count
+        description: Events with respiratory reactions
+      - name: hospitalization_count
+        description: Events resulting in hospitalization
+      - name: top_reaction
+        description: Most common reaction for this industry
+
+  - name: fct_fda_events_monthly
+    description: Monthly trends for FDA food adverse events
+    config:
+      schema: fda_food
+      tags: ['fda_food']
+    columns:
+      - name: month
+        description: First day of month
+        tests:
+          - not_null
+      - name: year
+        description: Year of event
+      - name: event_count
+        description: Total events this month
+      - name: gastrointestinal_count
+        description: Events with gastrointestinal reactions
+      - name: allergic_count
+        description: Events with allergic reactions
+      - name: hospitalization_count
+        description: Events resulting in hospitalization
+      - name: avg_reactions_per_event
+        description: Average number of reaction categories per event

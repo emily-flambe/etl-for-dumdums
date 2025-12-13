@@ -13,9 +13,24 @@ from data import load_hn_keyword_sentiment
 st.title("Hacker News Sentiment Trends")
 
 st.markdown("""
-Sentiment analysis of Hacker News comments, aggregated by keyword and day.
-Comments are matched to stories containing tracked keywords, then analyzed
-using Cloudflare Workers AI sentiment scoring.
+Sentiment analysis of [Hacker News](https://news.ycombinator.com/) comments to gauge community
+opinion on technology topics. Comments are matched to stories containing tracked keywords,
+then analyzed for positive/negative sentiment.
+
+**About the Data:**
+- **Source:** [BigQuery Public Dataset](https://console.cloud.google.com/bigquery?p=bigquery-public-data&d=hacker_news)
+  (`bigquery-public-data.hacker_news.full`)
+- **Sentiment Model:** [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
+  using DistilBERT (`@cf/huggingface/distilbert-sst-2-int8`)
+- **Updates:** Daily sync with sentiment computed during ETL
+
+**How It Works:**
+1. Stories with tracked keywords (AI, React, etc.) are identified
+2. Comments on those stories are extracted
+3. Each comment is scored for sentiment (positive/negative) using Cloudflare AI
+4. Results are aggregated by keyword and day for trend visualization
+
+*Note: Sentiment scores reflect the tone of discussion, not factual accuracy or quality.*
 """)
 
 df = load_hn_keyword_sentiment()

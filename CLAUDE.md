@@ -103,9 +103,12 @@ One dataset per source. Raw tables prefixed with `raw_`, dbt models in same data
 | `GCP_SA_KEY_FILE` | dbt | Path to credentials.json file |
 | `LINEAR_API_KEY` | ETL | Linear API key |
 | `GITHUB_TOKEN` | ETL | GitHub PAT with repo and read:org scopes |
+| `ORGANIZATION` | ETL | GitHub organization name |
+| `REPOSITORIES` | ETL | Comma-separated list of repo names (e.g., `repo1,repo2`) |
 | `OURA_API_TOKEN` | ETL | Oura personal access token |
 | `CLOUDFLARE_ACCOUNT_ID` | ETL | Cloudflare account ID (for Workers AI) |
 | `CLOUDFLARE_WORKERS_AI_TOKEN` | ETL | Cloudflare Workers AI API token |
+| `DEPLOYMENT_MODE` | Streamlit | `local` (all pages) or `public` (public pages only) |
 
 ## Common Commands
 
@@ -289,7 +292,6 @@ Sentiment is computed during ETL (in Python `transform()` method), not in dbt. T
 ## Current State
 
 - **Working**: Full pipeline (ETL + dbt) runs via `make run`
-- **Working**: GitHub source syncs PRs, reviews, comments for demexchange org
+- **Working**: GitHub source syncs PRs, reviews, comments (configure via `ORGANIZATION` and `REPOSITORIES` env vars)
 - **Working**: Oura source syncs sleep, readiness, and activity data
 - **Working**: Hacker News source syncs stories and comments with sentiment analysis (via Cloudflare AI)
-- **Repos synced**: demexchange/ddx-data-pipeline, demexchange/snowflake-queries

@@ -5,8 +5,8 @@ Fetches pull requests, reviews, comments, and users from GitHub REST API
 for a configurable GitHub organization.
 
 Configure via environment variables:
-- GITHUB_ORG: Organization name (required)
-- GITHUB_REPOS: Comma-separated list of repo names (required)
+- ORGANIZATION: Organization name (required)
+- REPOSITORIES: Comma-separated list of repo names (required)
 """
 
 import logging
@@ -30,17 +30,17 @@ GITHUB_API_URL = "https://api.github.com"
 
 def get_org_name() -> str:
     """Get GitHub organization name from environment."""
-    org = os.environ.get("GITHUB_ORG")
+    org = os.environ.get("ORGANIZATION")
     if not org:
-        raise ValueError("GITHUB_ORG environment variable is not set")
+        raise ValueError("ORGANIZATION environment variable is not set")
     return org
 
 
 def get_repos() -> list[str]:
     """Get list of repositories to sync from environment."""
-    repos_str = os.environ.get("GITHUB_REPOS")
+    repos_str = os.environ.get("REPOSITORIES")
     if not repos_str:
-        raise ValueError("GITHUB_REPOS environment variable is not set")
+        raise ValueError("REPOSITORIES environment variable is not set")
     org = get_org_name()
     # Support both "repo1,repo2" and "org/repo1,org/repo2" formats
     repos = []
@@ -221,7 +221,7 @@ class GitHubPullRequestsSource(Source):
         all_prs = []
         headers = get_headers()
 
-        for repo in REPOS:
+        for repo in get_repos():
             repo_name = repo.split("/")[1]
             url = f"{GITHUB_API_URL}/repos/{repo}/pulls"
             params = {
@@ -355,7 +355,7 @@ class GitHubPRReviewsSource(Source):
             pr_number = pr["number"]
             pr_id = str(pr["id"])
 
-            url = f"{GITHUB_API_URL}/repos/{ORG_NAME}/{repo}/pulls/{pr_number}/reviews"
+            url = f"{GITHUB_API_URL}/repos/{get_org_name()}/{repo}/pulls/{pr_number}/reviews"
             reviews = fetch_paginated(url)
 
             for review in reviews:
@@ -420,7 +420,7 @@ class GitHubPRCommentsSource(Source):
             pr_id = str(pr["id"])
 
             # Review comments (inline code comments)
-            url = f"{GITHUB_API_URL}/repos/{ORG_NAME}/{repo}/pulls/{pr_number}/comments"
+            url = f"{GITHUB_API_URL}/repos/{get_org_name()}/{repo}/pulls/{pr_number}/comments"
             comments = fetch_paginated(url)
 
             for comment in comments:
