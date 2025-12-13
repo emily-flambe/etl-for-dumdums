@@ -207,36 +207,67 @@ class GitHubPullRequestsSource(Source):
                 "state": "all",
                 "sort": "updated",
                 "direction": "desc",
+                "per_page": 100,
             }
-            prs = fetch_paginated(url, params)
 
-            # Filter by updated_at and add repo context
-            filtered_count = 0
-            for pr in prs:
-                updated_at = datetime.fromisoformat(pr["updated_at"].replace("Z", "+00:00"))
-                if updated_at < since_date:
-                    continue
+            # Paginate manually with early termination
+            # Since results are sorted by updated desc, we can stop once we hit old PRs
+            page = 1
+            repo_pr_count = 0
+            reached_cutoff = False
 
-                filtered_count += 1
+            while not reached_cutoff:
+                logger.info(f"Fetching page {page} of PRs from {repo_name}...")
+                response = requests.get(
+                    url,
+                    headers=headers,
+                    params={**params, "page": page},
+                    timeout=30,
+                )
+                response.raise_for_status()
+                prs = response.json()
 
-                # Fetch individual PR to get additions/deletions/changed_files
-                # (these fields aren't included in the list endpoint)
-                pr_detail_url = f"{GITHUB_API_URL}/repos/{repo}/pulls/{pr['number']}"
-                try:
-                    time.sleep(API_DELAY_SECONDS)  # Rate limiting
-                    response = requests.get(pr_detail_url, headers=headers, timeout=30)
-                    response.raise_for_status()
-                    pr_detail = response.json()
-                    pr["additions"] = pr_detail.get("additions")
-                    pr["deletions"] = pr_detail.get("deletions")
-                    pr["changed_files"] = pr_detail.get("changed_files")
-                except Exception as e:
-                    logger.warning(f"Failed to fetch details for PR #{pr['number']}: {e}")
+                if not prs:
+                    break
 
-                pr["_repo"] = repo_name
-                all_prs.append(pr)
+                for pr in prs:
+                    updated_at = datetime.fromisoformat(
+                        pr["updated_at"].replace("Z", "+00:00")
+                    )
+                    if updated_at < since_date:
+                        # All subsequent PRs will be older, stop pagination
+                        reached_cutoff = True
+                        logger.info(
+                            f"Reached cutoff date at PR #{pr['number']} "
+                            f"(updated {updated_at.date()})"
+                        )
+                        break
 
-            logger.info(f"Filtered to {filtered_count} PRs from {repo_name}")
+                    # Fetch individual PR to get additions/deletions/changed_files
+                    # (these fields aren't included in the list endpoint)
+                    pr_detail_url = f"{GITHUB_API_URL}/repos/{repo}/pulls/{pr['number']}"
+                    try:
+                        time.sleep(API_DELAY_SECONDS)  # Rate limiting
+                        response = requests.get(
+                            pr_detail_url, headers=headers, timeout=30
+                        )
+                        response.raise_for_status()
+                        pr_detail = response.json()
+                        pr["additions"] = pr_detail.get("additions")
+                        pr["deletions"] = pr_detail.get("deletions")
+                        pr["changed_files"] = pr_detail.get("changed_files")
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to fetch details for PR #{pr['number']}: {e}"
+                        )
+
+                    pr["_repo"] = repo_name
+                    all_prs.append(pr)
+                    repo_pr_count += 1
+
+                page += 1
+
+            logger.info(f"Fetched {repo_pr_count} PRs from {repo_name}")
 
         # Store for use by reviews/comments sources
         self._fetched_prs = all_prs
