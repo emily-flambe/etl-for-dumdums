@@ -52,8 +52,6 @@ selected_repos = st.sidebar.multiselect("Repos", repos, default=repos)
 authors = sorted(prs["author_username"].dropna().unique().tolist())
 selected_authors = st.sidebar.multiselect("Authors", authors, default=authors)
 
-# Toggle for author breakdown
-show_by_author = st.sidebar.toggle("Show by Author", value=False)
 
 # Apply filters to PRs
 filtered_prs = prs.copy()
@@ -188,130 +186,6 @@ if has_code_data:
     st.altair_chart(code_chart, use_container_width=True)
 else:
     st.info("No code volume data available. Re-run `make sync-github` to fetch additions/deletions.")
-
-# Breakdown section (conditional on toggle)
-st.subheader("Breakdown")
-
-if show_by_author:
-    # Author breakdown charts
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.write("**PRs Merged by Author**")
-        author_merged = (
-            filtered_prs[filtered_prs["merged_at"].notna()]
-            .groupby("author_username")
-            .size()
-            .reset_index(name="PRs Merged")
-            .sort_values("PRs Merged", ascending=False)
-            .head(10)
-        )
-        if len(author_merged) > 0:
-            author_chart = alt.Chart(author_merged).mark_bar(color="#22c55e").encode(
-                x=alt.X("PRs Merged:Q"),
-                y=alt.Y("author_username:N", sort="-x", title="Author"),
-                tooltip=["author_username:N", "PRs Merged:Q"],
-            ).properties(height=250)
-            st.altair_chart(author_chart, use_container_width=True)
-        else:
-            st.info("No merged PRs in selected range")
-
-    with col2:
-        st.write("**Avg Time to First Review by Reviewer**")
-        reviewer_response = (
-            filtered_activity[filtered_activity["time_to_first_review_hours"].notna()]
-            .groupby("reviewer_username")["time_to_first_review_hours"]
-            .mean()
-            .reset_index(name="Avg Hours")
-            .sort_values("Avg Hours", ascending=True)
-            .head(10)
-        )
-        if len(reviewer_response) > 0:
-            reviewer_chart = alt.Chart(reviewer_response).mark_bar(color="#6366f1").encode(
-                x=alt.X("Avg Hours:Q", title="Hours"),
-                y=alt.Y("reviewer_username:N", sort="x", title="Reviewer"),
-                tooltip=["reviewer_username:N", "Avg Hours:Q"],
-            ).properties(height=250)
-            st.altair_chart(reviewer_chart, use_container_width=True)
-        else:
-            st.info("No review data in selected range")
-
-    # Second row of author charts
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.write("**Avg Time to First Comment by Reviewer**")
-        commenter_response = (
-            filtered_activity[filtered_activity["time_to_first_comment_hours"].notna()]
-            .groupby("reviewer_username")["time_to_first_comment_hours"]
-            .mean()
-            .reset_index(name="Avg Hours")
-            .sort_values("Avg Hours", ascending=True)
-            .head(10)
-        )
-        if len(commenter_response) > 0:
-            commenter_chart = alt.Chart(commenter_response).mark_bar(color="#8b5cf6").encode(
-                x=alt.X("Avg Hours:Q", title="Hours"),
-                y=alt.Y("reviewer_username:N", sort="x", title="Reviewer"),
-                tooltip=["reviewer_username:N", "Avg Hours:Q"],
-            ).properties(height=250)
-            st.altair_chart(commenter_chart, use_container_width=True)
-        else:
-            st.info("No comment data in selected range")
-
-    with col2:
-        st.write("**Review Activity by Reviewer**")
-        review_activity_by_user = (
-            filtered_activity
-            .groupby("reviewer_username")
-            .agg({"review_count": "sum", "comment_count": "sum"})
-            .reset_index()
-        )
-        review_activity_by_user["total_activity"] = (
-            review_activity_by_user["review_count"] + review_activity_by_user["comment_count"]
-        )
-        review_activity_by_user = review_activity_by_user.sort_values("total_activity", ascending=False).head(10)
-
-        if len(review_activity_by_user) > 0:
-            activity_data = review_activity_by_user.melt(
-                id_vars=["reviewer_username"],
-                value_vars=["review_count", "comment_count"],
-                var_name="Type",
-                value_name="Count"
-            )
-            activity_data["Type"] = activity_data["Type"].map({
-                "review_count": "Reviews",
-                "comment_count": "Comments"
-            })
-            activity_bar = alt.Chart(activity_data).mark_bar().encode(
-                x=alt.X("Count:Q"),
-                y=alt.Y("reviewer_username:N", sort="-x", title="Reviewer"),
-                color=alt.Color("Type:N", scale=alt.Scale(
-                    domain=["Reviews", "Comments"],
-                    range=["#22c55e", "#6366f1"]
-                )),
-                tooltip=["reviewer_username:N", "Type:N", "Count:Q"],
-            ).properties(height=250)
-            st.altair_chart(activity_bar, use_container_width=True)
-        else:
-            st.info("No activity data in selected range")
-
-else:
-    # Team-level breakdown: PR outcomes bar chart
-    st.write("**PR Outcomes**")
-    outcome_counts = filtered_prs["pr_outcome"].value_counts().reset_index()
-    outcome_counts.columns = ["Outcome", "Count"]
-
-    outcome_chart = alt.Chart(outcome_counts).mark_bar().encode(
-        x=alt.X("Count:Q", title="PRs"),
-        y=alt.Y("Outcome:N", sort="-x", title=None),
-        color=alt.Color("Outcome:N", scale=alt.Scale(
-            domain=["merged", "open", "closed_without_merge"],
-            range=["#22c55e", "#6366f1", "#ef4444"]
-        ), legend=None),
-        tooltip=["Outcome:N", "Count:Q"],
-    ).properties(height=150)
-    st.altair_chart(outcome_chart, use_container_width=True)
 
 # Data table (collapsed by default)
 with st.expander("View PR Data"):
