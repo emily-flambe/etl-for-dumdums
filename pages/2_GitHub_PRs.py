@@ -121,9 +121,12 @@ weekly_merged = weekly_merged.rename(columns={"merged_week": "week"})
 weekly_activity = pd.merge(weekly_opened, weekly_merged, on="week", how="outer").fillna(0)
 weekly_activity = weekly_activity.sort_values("week")
 
-# Weekly cycle time
+# All timing metrics from merged PRs only, grouped by merge week for consistency
+# This ensures: Time to First Response <= Time to Approval <= Time to Merge
+merged_prs_with_timing = filtered_prs[filtered_prs["merged_at"].notna()].copy()
+
 weekly_cycle = (
-    filtered_prs[filtered_prs["cycle_time_hours"].notna()]
+    merged_prs_with_timing[merged_prs_with_timing["cycle_time_hours"].notna()]
     .groupby("merged_week")["cycle_time_hours"]
     .mean()
     .reset_index(name="Avg Cycle Time (hours)")
@@ -131,23 +134,35 @@ weekly_cycle = (
 weekly_cycle = weekly_cycle.rename(columns={"merged_week": "week"})
 weekly_cycle = weekly_cycle.sort_values("week")
 
-# Weekly time to first review (approval)
 weekly_review = (
-    filtered_prs[filtered_prs["time_to_first_review_hours"].notna()]
-    .groupby("week")["time_to_first_review_hours"]
+    merged_prs_with_timing[merged_prs_with_timing["time_to_first_review_hours"].notna()]
+    .groupby("merged_week")["time_to_first_review_hours"]
     .mean()
     .reset_index(name="Avg Time to Approval (hours)")
 )
+weekly_review = weekly_review.rename(columns={"merged_week": "week"})
 weekly_review = weekly_review.sort_values("week")
 
-# Weekly time to first response (comment or approval, whichever comes first)
+# For first response, join activity data to merged PRs
 filtered_activity["week"] = filtered_activity["pr_created_at"].dt.to_period("W").dt.start_time
+merged_pr_ids = set(merged_prs_with_timing["pull_request_id"].astype(str).tolist())
+merged_activity = filtered_activity[filtered_activity["pull_request_id"].astype(str).isin(merged_pr_ids)].copy()
+# Use merged_week from the PR data
+pr_merge_weeks = merged_prs_with_timing[["pull_request_id", "merged_week"]].copy()
+pr_merge_weeks["pull_request_id"] = pr_merge_weeks["pull_request_id"].astype(str)
+merged_activity["pull_request_id"] = merged_activity["pull_request_id"].astype(str)
+merged_activity = merged_activity.merge(
+    pr_merge_weeks,
+    on="pull_request_id",
+    how="left"
+)
 weekly_response = (
-    filtered_activity[filtered_activity["time_to_first_response_hours"].notna()]
-    .groupby("week")["time_to_first_response_hours"]
+    merged_activity[merged_activity["time_to_first_response_hours"].notna()]
+    .groupby("merged_week")["time_to_first_response_hours"]
     .mean()
     .reset_index(name="Avg Time to First Response (hours)")
 )
+weekly_response = weekly_response.rename(columns={"merged_week": "week"})
 weekly_response = weekly_response.sort_values("week")
 
 # Weekly code volume
