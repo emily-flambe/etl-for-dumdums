@@ -87,7 +87,7 @@ if __name__ == "__main__":
         comment_source.primary_key,
         dataset_id=comment_source.dataset_id,
     )
-    logger.info(f"Sync complete for {comment_source.__name__}")
+    logger.info(f"Sync complete for {comment_source.__class__.__name__}")
 
     # Step 4: Extract users from all activity data
     logger.info("Extracting users from activity data...")
