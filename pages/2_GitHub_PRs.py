@@ -179,15 +179,10 @@ st.subheader("Trends")
 
 # PR Activity Chart - just show PRs opened per week
 st.write("**PRs Opened Per Week**")
-# Format week as string for nominal x-axis (gives better control over bar positioning)
-weekly_opened_display = weekly_opened.copy()
-weekly_opened_display["week_label"] = weekly_opened_display["week"].dt.strftime("%b %d")
-week_order = weekly_opened_display.sort_values("week")["week_label"].tolist()
-
-activity_chart = alt.Chart(weekly_opened_display).mark_bar(color="#6366f1", size=20).encode(
-    x=alt.X("week_label:N", title="Week", sort=week_order, axis=alt.Axis(labelAngle=0)),
+activity_chart = alt.Chart(weekly_opened).mark_bar(color="#6366f1", size=20).encode(
+    x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d")),
     y=alt.Y("PRs Opened:Q", title="PRs"),
-    tooltip=["week_label:N", "PRs Opened:Q"],
+    tooltip=[alt.Tooltip("week:T", format="%b %d, %Y"), "PRs Opened:Q"],
 ).properties(height=250)
 st.altair_chart(activity_chart, use_container_width=True)
 
