@@ -83,7 +83,7 @@ prs_opened = len(filtered_prs)
 prs_merged = len(filtered_prs[filtered_prs["merged_at"].notna()])
 avg_time_to_merge = filtered_prs["cycle_time_hours"].mean()
 avg_time_to_first_review = filtered_prs["time_to_first_review_hours"].mean()
-avg_time_to_first_comment = filtered_activity["time_to_first_comment_hours"].mean()
+avg_time_to_first_response = filtered_activity["time_to_first_response_hours"].mean()
 
 lines_added = filtered_prs["additions"].sum()
 lines_deleted = filtered_prs["deletions"].sum()
@@ -98,7 +98,7 @@ col1.metric("PRs Opened", prs_opened)
 col2.metric("PRs Merged", prs_merged)
 col3.metric("Avg Time to Merge", f"{avg_time_to_merge:.0f}h" if pd.notna(avg_time_to_merge) else "N/A")
 col4.metric("Avg Time to First Review", f"{avg_time_to_first_review:.0f}h" if pd.notna(avg_time_to_first_review) else "N/A")
-col5.metric("Avg Time to First Comment", f"{avg_time_to_first_comment:.0f}h" if pd.notna(avg_time_to_first_comment) else "N/A")
+col5.metric("Avg Time to First Response", f"{avg_time_to_first_response:.0f}h" if pd.notna(avg_time_to_first_response) else "N/A")
 
 # Metrics Row 2: Code Volume
 st.subheader("Code Volume")
@@ -140,15 +140,15 @@ weekly_review = (
 )
 weekly_review = weekly_review.sort_values("week")
 
-# Weekly time to first comment
+# Weekly time to first response (comment or approval, whichever comes first)
 filtered_activity["week"] = filtered_activity["pr_created_at"].dt.to_period("W").dt.start_time
-weekly_comment = (
-    filtered_activity[filtered_activity["time_to_first_comment_hours"].notna()]
-    .groupby("week")["time_to_first_comment_hours"]
+weekly_response = (
+    filtered_activity[filtered_activity["time_to_first_response_hours"].notna()]
+    .groupby("week")["time_to_first_response_hours"]
     .mean()
-    .reset_index(name="Avg Time to First Comment (hours)")
+    .reset_index(name="Avg Time to First Response (hours)")
 )
-weekly_comment = weekly_comment.sort_values("week")
+weekly_response = weekly_response.sort_values("week")
 
 # Weekly code volume
 weekly_code = (
@@ -188,11 +188,11 @@ if len(weekly_review) > 0:
     review_df = review_df.rename(columns={"Avg Time to Approval (hours)": "Hours"})
     timing_data.append(review_df[["week", "Metric", "Hours"]])
 
-if len(weekly_comment) > 0:
-    comment_df = weekly_comment.copy()
-    comment_df["Metric"] = "Time to First Comment"
-    comment_df = comment_df.rename(columns={"Avg Time to First Comment (hours)": "Hours"})
-    timing_data.append(comment_df[["week", "Metric", "Hours"]])
+if len(weekly_response) > 0:
+    response_df = weekly_response.copy()
+    response_df["Metric"] = "Time to First Comment or Approval"
+    response_df = response_df.rename(columns={"Avg Time to First Response (hours)": "Hours"})
+    timing_data.append(response_df[["week", "Metric", "Hours"]])
 
 if timing_data:
     combined_timing = pd.concat(timing_data, ignore_index=True)
@@ -200,7 +200,7 @@ if timing_data:
         x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d")),
         y=alt.Y("Hours:Q", title="Hours"),
         color=alt.Color("Metric:N", scale=alt.Scale(
-            domain=["Time to Merge", "Time to Approval", "Time to First Comment"],
+            domain=["Time to Merge", "Time to Approval", "Time to First Comment or Approval"],
             range=["#f59e0b", "#22c55e", "#6366f1"]
         )),
         tooltip=[alt.Tooltip("week:T", format="%b %d, %Y"), "Metric:N", alt.Tooltip("Hours:Q", format=".1f")],
