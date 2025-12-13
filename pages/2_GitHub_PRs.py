@@ -179,7 +179,7 @@ st.subheader("Trends")
 
 # PR Activity Chart - just show PRs opened per week
 st.write("**PRs Opened Per Week**")
-activity_chart = alt.Chart(weekly_opened).mark_bar(color="#6366f1").encode(
+activity_chart = alt.Chart(weekly_opened).mark_bar(color="#6366f1", size=20).encode(
     x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d", values=weekly_opened["week"].tolist())),
     y=alt.Y("PRs Opened:Q", title="PRs"),
     tooltip=[alt.Tooltip("week:T", format="%b %d, %Y"), "PRs Opened:Q"],
@@ -211,8 +211,10 @@ if len(weekly_response) > 0:
 
 if timing_data:
     combined_timing = pd.concat(timing_data, ignore_index=True)
+    # Get unique weeks for x-axis alignment
+    timing_weeks = combined_timing["week"].drop_duplicates().sort_values().tolist()
     timing_chart = alt.Chart(combined_timing).mark_line(point=True).encode(
-        x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d")),
+        x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d", values=timing_weeks)),
         y=alt.Y("Hours:Q", title="Hours"),
         color=alt.Color("Metric:N", scale=alt.Scale(
             domain=["Time to Merge", "Time to Approval", "Time to First Comment or Approval"],
