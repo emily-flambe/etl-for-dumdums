@@ -1,0 +1,67 @@
+version: 2
+
+models:
+  - name: fct_fda_recalls_by_state
+    description: FDA food recalls aggregated by US state for geographic visualization
+    config:
+      schema: fda_food
+      tags: ['fda_food']
+    columns:
+      - name: state_code
+        description: Two-letter US state code
+        tests:
+          - unique
+          - not_null
+      - name: state_name
+        description: Full state name for display
+      - name: fips_code
+        description: Federal Information Processing Standards code for geographic mapping
+      - name: total_recalls
+        description: Total number of recalls from firms in this state
+      - name: class_i_recalls
+        description: Count of Class I (most serious) recalls
+      - name: class_ii_recalls
+        description: Count of Class II (moderate) recalls
+      - name: class_iii_recalls
+        description: Count of Class III (minor) recalls
+      - name: ongoing_recalls
+        description: Count of currently ongoing recalls
+      - name: terminated_recalls
+        description: Count of terminated recalls
+      - name: earliest_recall
+        description: Date of earliest recall in this state
+      - name: latest_recall
+        description: Date of most recent recall in this state
+
+  - name: fct_fda_recalls_by_topic
+    description: |
+      FDA food recalls aggregated by topic for trend analysis and filtering.
+      Topics are extracted via regex from reason_for_recall text. Includes
+      rollup categories (Pathogen Any, Allergen Any) that avoid double-counting.
+    config:
+      schema: fda_food
+      tags: ['fda_food']
+    columns:
+      - name: topic
+        description: Topic name (e.g., Listeria, Salmonella, Milk/Dairy, Allergen (Any))
+        tests:
+          - unique
+          - not_null
+      - name: topic_category
+        description: Category grouping (Pathogen, Allergen, Physical, Labeling, Process, Pathogen Rollup, Allergen Rollup)
+      - name: recall_count
+        description: Number of distinct recalls matching this topic
+      - name: class_i_count
+        description: Count of Class I (most serious) recalls
+      - name: class_ii_count
+        description: Count of Class II (moderate) recalls
+      - name: class_iii_count
+        description: Count of Class III (minor) recalls
+      - name: states_affected
+        description: Number of distinct states with recalls for this topic
+      - name: firms_affected
+        description: Number of distinct firms with recalls for this topic
+      - name: earliest_recall
+        description: Date of earliest recall for this topic
+      - name: latest_recall
+        description: Date of most recent recall for this topic

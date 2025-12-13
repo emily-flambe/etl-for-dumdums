@@ -1,0 +1,59 @@
+version: 2
+
+models:
+  - name: int_fda__recall_topics
+    description: |
+      Extracts topic tags from FDA recall reason text using regex pattern matching.
+      Each recall can have multiple topics (stored as array). Includes rollup flags
+      (has_allergen, has_pathogen) to prevent double-counting in aggregations.
+    config:
+      schema: fda_food
+      tags: ['fda_food']
+    columns:
+      - name: recall_number
+        description: Unique recall identifier
+        tests:
+          - unique
+          - not_null
+      - name: reason_for_recall
+        description: Original reason text used for topic extraction
+      - name: topics
+        description: Array of matched topic names extracted from reason text
+      - name: topic_count
+        description: Number of topics matched for this recall
+      - name: has_pathogen
+        description: True if any pathogen was detected (Listeria, Salmonella, E. coli, or Other)
+      - name: has_allergen
+        description: True if any allergen was detected (Milk, Eggs, Peanuts, Tree Nuts, Wheat, Soy, Fish, Shellfish, Sesame)
+      - name: is_listeria
+        description: True if Listeria monocytogenes mentioned
+      - name: is_salmonella
+        description: True if Salmonella mentioned
+      - name: is_ecoli
+        description: True if E. coli or Escherichia mentioned
+      - name: is_other_pathogen
+        description: True if other pathogens mentioned (Clostridium, Botulism, Cronobacter, Hepatitis, Norovirus, Cyclospora)
+      - name: is_milk
+        description: True if undeclared milk/dairy allergen detected
+      - name: is_eggs
+        description: True if undeclared egg allergen detected
+      - name: is_peanuts
+        description: True if undeclared peanut allergen detected
+      - name: is_tree_nuts
+        description: True if undeclared tree nut allergen detected
+      - name: is_wheat
+        description: True if undeclared wheat/gluten allergen detected
+      - name: is_soy
+        description: True if undeclared soy allergen detected
+      - name: is_fish
+        description: True if undeclared fish allergen detected
+      - name: is_shellfish
+        description: True if undeclared shellfish allergen detected
+      - name: is_sesame
+        description: True if undeclared sesame allergen detected
+      - name: is_foreign_material
+        description: True if foreign material/object contamination detected
+      - name: is_labeling
+        description: True if labeling/misbranding issue detected
+      - name: is_temperature
+        description: True if temperature abuse issue detected

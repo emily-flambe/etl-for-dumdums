@@ -15,7 +15,7 @@ staged as (
             r'&[a-z]+;', ' '  -- Remove HTML entities like &amp; &lt; etc.
         ) as comment_text_clean,
         posted_at,
-        posted_month,
+        posted_day,
         -- Sentiment fields (pre-computed via Cloudflare Workers AI during ETL)
         sentiment_score,
         sentiment_label,

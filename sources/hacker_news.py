@@ -22,8 +22,10 @@ logger = logging.getLogger(__name__)
 
 # Default lookback periods
 DEFAULT_LOOKBACK_DAYS = 30  # Stories
-DEFAULT_COMMENTS_LOOKBACK_DAYS = 7  # Comments (limited due to Cloudflare AI rate limits)
-FULL_LOOKBACK_DAYS = 365 * 5  # 5 years
+DEFAULT_COMMENTS_LOOKBACK_DAYS = 5  # Comments (limited due to Cloudflare AI rate limits)
+FULL_LOOKBACK_DAYS = 365 * 5  # 5 years (stories)
+FULL_COMMENTS_LOOKBACK_DAYS = 30  # 30 days (comments - limited by Cloudflare AI costs)
+DEFAULT_TOP_STORIES_PER_DAY = 30  # Focus on most active discussions
 
 
 class HNStoriesSource(Source):
@@ -243,25 +245,49 @@ class HNCommentsSource(Source):
         bigquery.SchemaField("author", "STRING"),
         bigquery.SchemaField("text", "STRING"),
         bigquery.SchemaField("posted_at", "TIMESTAMP"),
-        bigquery.SchemaField("posted_month", "DATE"),
+        bigquery.SchemaField("posted_day", "DATE"),
         # Sentiment fields (computed via Cloudflare Workers AI)
         bigquery.SchemaField("sentiment_score", "FLOAT"),
         bigquery.SchemaField("sentiment_label", "STRING"),
         bigquery.SchemaField("sentiment_category", "STRING"),
     ]
 
-    def __init__(self, lookback_days: int = DEFAULT_COMMENTS_LOOKBACK_DAYS):
+    def __init__(self, lookback_days: int = DEFAULT_COMMENTS_LOOKBACK_DAYS, top_stories_per_day: int = DEFAULT_TOP_STORIES_PER_DAY):
         self.lookback_days = lookback_days
+        self.top_stories_per_day = top_stories_per_day
 
     def fetch(self) -> list[dict[str, Any]]:
-        """Fetch top-level comments from BigQuery public dataset."""
-        logger.info(f"Fetching HN comments from last {self.lookback_days} days...")
+        """Fetch top-level comments from top stories by activity per day."""
+        logger.info(f"Fetching HN comments from top {self.top_stories_per_day} stories/day for last {self.lookback_days} days...")
 
         client = bq.get_client()
 
-        # Query top-level comments only (direct replies to stories)
-        # This is simpler and covers the majority of sentiment signal
+        # Query comments from the top N most-discussed stories per day
+        # This focuses sentiment analysis on the most active discussions
         query = r"""
+        WITH stories_ranked AS (
+            -- Rank stories by comment count (descendants) within each day
+            SELECT
+                id,
+                DATE(`timestamp`) as story_day,
+                descendants,
+                ROW_NUMBER() OVER (
+                    PARTITION BY DATE(`timestamp`)
+                    ORDER BY descendants DESC
+                ) as rank_in_day
+            FROM `bigquery-public-data.hacker_news.full`
+            WHERE type = 'story'
+              AND `timestamp` >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @lookback_days DAY)
+              AND deleted IS NOT TRUE
+              AND dead IS NOT TRUE
+              AND descendants > 0
+        ),
+        top_stories AS (
+            -- Keep only top N stories per day
+            SELECT id, story_day
+            FROM stories_ranked
+            WHERE rank_in_day <= @top_stories_per_day
+        )
         SELECT
             c.id,
             c.parent as parent_id,
@@ -269,12 +295,10 @@ class HNCommentsSource(Source):
             c.`by` as author,
             c.text,
             c.`timestamp` as posted_at,
-            DATE_TRUNC(DATE(c.`timestamp`), MONTH) as posted_month
+            DATE(c.`timestamp`) as posted_day
         FROM `bigquery-public-data.hacker_news.full` c
-        JOIN `bigquery-public-data.hacker_news.full` p ON c.parent = p.id
+        JOIN top_stories ts ON c.parent = ts.id
         WHERE c.type = 'comment'
-          AND p.type = 'story'
-          AND c.`timestamp` >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @lookback_days DAY)
           AND c.deleted IS NOT TRUE
           AND c.dead IS NOT TRUE
           AND c.text IS NOT NULL
@@ -284,7 +308,8 @@ class HNCommentsSource(Source):
 
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
-                bigquery.ScalarQueryParameter("lookback_days", "INT64", self.lookback_days)
+                bigquery.ScalarQueryParameter("lookback_days", "INT64", self.lookback_days),
+                bigquery.ScalarQueryParameter("top_stories_per_day", "INT64", self.top_stories_per_day),
             ]
         )
 
@@ -300,7 +325,7 @@ class HNCommentsSource(Source):
                 "author": row.author,
                 "text": row.text,
                 "posted_at": row.posted_at.isoformat() if row.posted_at else None,
-                "posted_month": row.posted_month.isoformat() if row.posted_month else None,
+                "posted_day": row.posted_day.isoformat() if row.posted_day else None,
             })
 
         logger.info(f"Fetched {len(rows)} comments")

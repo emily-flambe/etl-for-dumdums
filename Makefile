@@ -7,18 +7,24 @@ endif
 # Optional flags
 FULL ?=
 
-.PHONY: help run \
-        sync sync-linear sync-github sync-oura sync-hacker-news sync-trends \
-        dbt dbt-linear dbt-github dbt-oura dbt-hacker-news dbt-trends \
-        dbt-run dbt-run-linear dbt-run-github dbt-run-oura dbt-run-hacker-news dbt-run-trends \
-        dbt-test dbt-test-linear dbt-test-github dbt-test-oura dbt-test-hacker-news dbt-test-trends \
+.PHONY: help run run-linear run-github run-oura run-hacker-news run-trends run-fda-food \
+        sync sync-linear sync-github sync-oura sync-hacker-news sync-trends sync-fda-food \
+        dbt dbt-linear dbt-github dbt-oura dbt-hacker-news dbt-trends dbt-fda-food \
+        dbt-run dbt-run-linear dbt-run-github dbt-run-oura dbt-run-hacker-news dbt-run-trends dbt-run-fda-food \
+        dbt-test dbt-test-linear dbt-test-github dbt-test-oura dbt-test-hacker-news dbt-test-trends dbt-test-fda-food \
         dbt-compile dbt-debug dbt-deps dbt-clean dbt-docs dbt-docs-serve dbt-seed dbt-snapshot \
         app test
 
 # Default target
 help:
-	@echo "Pipeline:"
-	@echo "  make run                  - Full pipeline (all syncs + dbt build)"
+	@echo "Pipeline (sync + dbt, add FULL=1 for full sync):"
+	@echo "  make run                  - Full pipeline (all sources)"
+	@echo "  make run-linear           - Linear pipeline"
+	@echo "  make run-github           - GitHub pipeline"
+	@echo "  make run-oura             - Oura pipeline"
+	@echo "  make run-hacker-news      - Hacker News pipeline"
+	@echo "  make run-trends           - Google Trends pipeline"
+	@echo "  make run-fda-food         - FDA Food Recalls pipeline"
 	@echo ""
 	@echo "Syncs (add FULL=1 for full sync instead of incremental):"
 	@echo "  make sync                 - All sources"
@@ -27,8 +33,10 @@ help:
 	@echo "  make sync-oura            - Oura (7 day lookback)"
 	@echo "  make sync-hacker-news     - Hacker News (30 day lookback)"
 	@echo "  make sync-trends          - Google Trends (3 month lookback)"
+	@echo "  make sync-fda-food        - FDA Food Recalls (from 2025-01-01)"
 	@echo "  make sync-linear FULL=1   - Linear full sync"
 	@echo "  make sync-hacker-news FULL=1 - Hacker News full sync (5 years)"
+	@echo "  make sync-fda-food FULL=1 - FDA Food Recalls full sync (from 2012)"
 	@echo ""
 	@echo "dbt (append -linear, -github, or -oura to filter by source):"
 	@echo "  make dbt                  - Build + test all models"
@@ -60,10 +68,17 @@ sync-oura:
 sync-hacker-news:
 	uv run python scripts/sync_hacker_news.py $(if $(FULL),--full,)
 
+# Backfill historical HN sentiment (DAYS=7, WORKERS=10 by default)
+backfill-hn-sentiment:
+	uv run python scripts/backfill_hn_sentiment.py --days $(or $(DAYS),7) --workers $(or $(WORKERS),10)
+
 sync-trends:
 	uv run python scripts/sync_trends.py
 
-sync: sync-linear sync-github sync-oura sync-hacker-news sync-trends
+sync-fda-food:
+	uv run python scripts/sync_fda_food.py $(if $(FULL),--full,)
+
+sync: sync-linear sync-github sync-oura sync-hacker-news sync-trends sync-fda-food
 
 # ---------- dbt ----------
 
@@ -85,6 +100,9 @@ dbt-hacker-news:
 dbt-trends:
 	cd dbt && uv run dbt build --profiles-dir . --select tag:trends
 
+dbt-fda-food:
+	cd dbt && uv run dbt build --profiles-dir . --select tag:fda_food
+
 dbt-run:
 	cd dbt && uv run dbt run --profiles-dir .
 
@@ -103,6 +121,9 @@ dbt-run-hacker-news:
 dbt-run-trends:
 	cd dbt && uv run dbt run --profiles-dir . --select tag:trends
 
+dbt-run-fda-food:
+	cd dbt && uv run dbt run --profiles-dir . --select tag:fda_food
+
 dbt-test:
 	cd dbt && uv run dbt test --profiles-dir .
 
@@ -120,6 +141,9 @@ dbt-test-hacker-news:
 
 dbt-test-trends:
 	cd dbt && uv run dbt test --profiles-dir . --select tag:trends
+
+dbt-test-fda-food:
+	cd dbt && uv run dbt test --profiles-dir . --select tag:fda_food
 
 dbt-compile:
 	cd dbt && uv run dbt compile --profiles-dir .
@@ -148,6 +172,18 @@ dbt-clean:
 # ---------- Full pipeline ----------
 
 run: sync dbt
+
+run-linear: sync-linear dbt-linear
+
+run-github: sync-github dbt-github
+
+run-oura: sync-oura dbt-oura
+
+run-hacker-news: sync-hacker-news dbt-hacker-news
+
+run-trends: sync-trends dbt-trends
+
+run-fda-food: sync-fda-food dbt-fda-food
 
 # ---------- Streamlit app ----------
 

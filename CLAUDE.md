@@ -221,6 +221,37 @@ Then navigate to the modified page in the browser. Do NOT rely only on Python sy
 - Nullable `Int64` columns causing issues with Altair conditions
 - Streamlit widget state errors
 
+### Automated Visual Verification with Playwright
+
+When troubleshooting Streamlit visual issues, use Playwright to take screenshots:
+
+```python
+# Install browsers if needed
+uv run playwright install chromium
+
+# Take screenshot
+uv run python -c "
+from playwright.sync_api import sync_playwright
+import time
+
+with sync_playwright() as p:
+    browser = p.chromium.launch()
+    page = browser.new_page(viewport={'width': 1400, 'height': 900})
+    page.goto('http://localhost:8501/PAGE_NAME')
+    time.sleep(6)  # Wait for Streamlit to render
+
+    # Scroll to see different parts of page
+    page.mouse.move(700, 450)
+    page.mouse.wheel(0, 1500)  # Adjust scroll amount
+    time.sleep(1)
+
+    page.screenshot(path='/tmp/screenshot.png')
+    browser.close()
+"
+```
+
+Then use the Read tool to view `/tmp/screenshot.png` and verify visual changes.
+
 ### Adding a New Streamlit Page
 
 1. Create `pages/N_PageName.py` (N = order number)

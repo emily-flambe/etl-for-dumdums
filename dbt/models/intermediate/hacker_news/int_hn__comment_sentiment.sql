@@ -21,7 +21,7 @@ with_sentiment as (
         ck.comment_id,
         ck.story_id,
         ck.keyword,
-        ck.posted_month,
+        ck.posted_day,
         c.sentiment_score,
         abs(c.sentiment_score) as sentiment_magnitude,  -- Use absolute score as magnitude proxy
         c.sentiment_category

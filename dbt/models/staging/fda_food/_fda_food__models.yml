@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: stg_fda__recalls
+    description: Staged FDA food recalls filtered to US states with cleaned column names
+    config:
+      schema: fda_food
+      tags: ['fda_food']
+    columns:
+      - name: recall_number
+        description: Unique recall identifier
+        tests:
+          - unique
+          - not_null
+      - name: classification
+        description: Recall severity class (Class I/II/III)
+        tests:
+          - accepted_values:
+              values: ['Class I', 'Class II', 'Class III']
+      - name: classification_severity
+        description: Numeric severity (1=most serious, 3=least serious)
+      - name: state_code
+        description: US state code where recalling firm is located
+        tests:
+          - not_null
+      - name: recall_initiation_date
+        description: Date the recall was initiated
+        tests:
+          - not_null
+      - name: recall_month
+        description: Month of recall initiation (for time series)
+      - name: recall_week
+        description: Week of recall initiation (Monday start)

@@ -1,0 +1,46 @@
+version: 2
+
+sources:
+  - name: fda_food
+    database: "{{ env_var('GCP_PROJECT_ID') }}"
+    schema: fda_food
+    tables:
+      - name: raw_recalls
+        description: Raw FDA food enforcement/recall data synced from BigQuery public dataset
+        columns:
+          - name: recall_number
+            description: Unique recall identifier (e.g., F-1234-2025)
+          - name: event_id
+            description: FDA event identifier
+          - name: classification
+            description: Recall severity (Class I = most serious, Class II = moderate, Class III = minor)
+          - name: status
+            description: Recall status (Terminated, Ongoing, Completed)
+          - name: voluntary_mandated
+            description: Whether recall was voluntary or FDA-mandated
+          - name: recalling_firm
+            description: Company conducting the recall
+          - name: city
+            description: City where recalling firm is located
+          - name: state
+            description: State/province code where recalling firm is located
+          - name: country
+            description: Country where recalling firm is located
+          - name: postal_code
+            description: ZIP/postal code of recalling firm
+          - name: reason_for_recall
+            description: Reason the product was recalled
+          - name: product_description
+            description: Description of the recalled product
+          - name: product_quantity
+            description: Amount of product recalled
+          - name: distribution_pattern
+            description: Geographic distribution of the recalled product
+          - name: recall_initiation_date
+            description: Date when the recall was initiated
+          - name: center_classification_date
+            description: Date when FDA classified the recall
+          - name: report_date
+            description: Date when recall was reported
+          - name: termination_date
+            description: Date when recall was terminated (if applicable)

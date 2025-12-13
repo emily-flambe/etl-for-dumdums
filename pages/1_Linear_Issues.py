@@ -246,7 +246,7 @@ if len(completed_assigned) > 0:
             totals[col] = assignee_pivot[col].sum()
     assignee_pivot = pd.concat([assignee_pivot, pd.DataFrame([totals])], ignore_index=True)
 
-    # Calculate height to show all rows without scrolling (35px per row + header)
+    # Calculate height to show all rows without scrolling
     table_height = (len(assignee_pivot) + 1) * 35 + 3
 
     st.dataframe(assignee_pivot, use_container_width=True, hide_index=True, height=table_height)

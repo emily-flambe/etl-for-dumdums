@@ -8,12 +8,13 @@
 
 with comment_sentiment as (
     select * from {{ ref('int_hn__comment_sentiment') }}
+    where posted_day is not null
 ),
 
-monthly_aggregates as (
+daily_aggregates as (
     select
         keyword,
-        posted_month as month,
+        posted_day as day,
 
         -- Counts
         count(*) as comment_count,
@@ -34,21 +35,21 @@ monthly_aggregates as (
         max(sentiment_score) as max_sentiment
 
     from comment_sentiment
-    group by keyword, posted_month
+    group by keyword, posted_day
 ),
 
--- Add month-over-month change
+-- Add day-over-day change
 with_changes as (
     select
         *,
         avg_sentiment - lag(avg_sentiment) over (
-            partition by keyword order by month
-        ) as sentiment_mom_change,
+            partition by keyword order by day
+        ) as sentiment_dod_change,
         positive_pct - lag(positive_pct) over (
-            partition by keyword order by month
-        ) as positive_pct_mom_change
-    from monthly_aggregates
+            partition by keyword order by day
+        ) as positive_pct_dod_change
+    from daily_aggregates
 )
 
 select * from with_changes
-order by month desc, comment_count desc
+order by day desc, comment_count desc

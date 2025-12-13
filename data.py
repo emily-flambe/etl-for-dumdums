@@ -144,6 +144,54 @@ def load_hn_keyword_sentiment():
     query = """
     SELECT *
     FROM hacker_news.fct_hn_keyword_sentiment
-    ORDER BY week DESC, comment_count DESC
+    ORDER BY day DESC, comment_count DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_fda_recalls_by_state():
+    """Load FDA food recalls aggregated by state from BigQuery."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM fda_food.fct_fda_recalls_by_state
+    ORDER BY total_recalls DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_fda_recalls_raw():
+    """Load raw FDA food recalls data from BigQuery."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM fda_food.stg_fda__recalls
+    ORDER BY recall_initiation_date DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_fda_recalls_by_topic():
+    """Load FDA food recalls aggregated by topic from BigQuery."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM fda_food.fct_fda_recalls_by_topic
+    ORDER BY recall_count DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_fda_recall_topics():
+    """Load FDA food recalls with topic tags from BigQuery."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM fda_food.int_fda__recall_topics
+    ORDER BY recall_initiation_date DESC
     """
     return client.query(query).to_dataframe()

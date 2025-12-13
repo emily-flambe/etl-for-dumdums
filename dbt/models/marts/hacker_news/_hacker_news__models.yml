@@ -68,7 +68,7 @@ models:
         description: Average score for stories mentioning this keyword
 
   - name: fct_hn_keyword_sentiment
-    description: Monthly sentiment aggregates by keyword from comment analysis
+    description: Daily sentiment aggregates by keyword from comment analysis
     config:
       schema: hacker_news
       tags: ['hacker_news']
@@ -77,10 +77,8 @@ models:
         description: Technology keyword tracked
         tests:
           - not_null
-      - name: month
-        description: Month of aggregation
-        tests:
-          - not_null
+      - name: day
+        description: Day of aggregation
       - name: comment_count
         description: Number of comments analyzed
       - name: story_count
@@ -98,10 +96,10 @@ models:
       - name: neutral_pct
         description: Percentage of comments with neutral sentiment
       - name: min_sentiment
-        description: Minimum sentiment score in the month
+        description: Minimum sentiment score for the day
       - name: max_sentiment
-        description: Maximum sentiment score in the month
-      - name: sentiment_mom_change
-        description: Month-over-month change in average sentiment
-      - name: positive_pct_mom_change
-        description: Month-over-month change in positive percentage
+        description: Maximum sentiment score for the day
+      - name: sentiment_dod_change
+        description: Day-over-day change in average sentiment
+      - name: positive_pct_dod_change
+        description: Day-over-day change in positive percentage
