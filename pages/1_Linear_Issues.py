@@ -103,21 +103,41 @@ col8.metric("Avg Days Open", f"{filtered['days_since_created'].mean():.0f}")
 # Charts row
 st.subheader("Charts")
 
-st.write("**Points by Assignee**")
-assignee_points = (
+st.write("**Points by Assignee (by Cycle)**")
+
+# Get top assignees by total points for color consistency
+top_assignees = (
     filtered.groupby(filtered["assignee_name"].fillna("Unassigned"))["estimate"]
     .sum()
     .sort_values(ascending=False)
     .head(10)
-    .reset_index()
+    .index.tolist()
 )
-assignee_points.columns = ["Assignee", "Points"]
 
-chart = alt.Chart(assignee_points).mark_bar().encode(
-    x=alt.X("Points:Q"),
-    y=alt.Y("Assignee:N", sort="-x"),
+# Filter to top assignees and aggregate by cycle
+assignee_cycle = filtered[filtered["assignee_name"].fillna("Unassigned").isin(top_assignees)].copy()
+assignee_cycle["assignee_display"] = assignee_cycle["assignee_name"].fillna("Unassigned")
+assignee_cycle = (
+    assignee_cycle.groupby(["cycle_name", "cycle_starts_at", "assignee_display"])["estimate"]
+    .sum()
+    .reset_index(name="Points")
 )
-st.altair_chart(chart, use_container_width=True)
+assignee_cycle = assignee_cycle.dropna(subset=["cycle_name"])
+assignee_cycle = assignee_cycle.sort_values("cycle_starts_at")
+
+# Get sorted cycle names for x-axis
+cycle_order = assignee_cycle.drop_duplicates("cycle_name").sort_values("cycle_starts_at")["cycle_name"].tolist()
+
+if len(assignee_cycle) > 0:
+    chart = alt.Chart(assignee_cycle).mark_line(point=True).encode(
+        x=alt.X("cycle_name:N", title="Cycle", sort=cycle_order),
+        y=alt.Y("Points:Q", title="Points"),
+        color=alt.Color("assignee_display:N", title="Assignee", sort=top_assignees),
+        tooltip=["cycle_name:N", "assignee_display:N", "Points:Q"],
+    ).properties(height=300)
+    st.altair_chart(chart, use_container_width=True)
+else:
+    st.info("No data available for trend chart")
 
 # Second charts row
 with st.container():
