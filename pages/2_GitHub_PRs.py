@@ -169,16 +169,21 @@ st.write("**Code Volume Over Time (Weekly)**")
 # Check if there's actual data (not all zeros/nulls)
 has_code_data = len(weekly_code) > 0 and (weekly_code["Lines Added"].sum() > 0 or weekly_code["Lines Deleted"].sum() > 0)
 if has_code_data:
-    code_chart_data = weekly_code.melt(id_vars=["week"], var_name="Metric", value_name="Lines")
+    # Format week as string for nominal x-axis (required for xOffset to work)
+    weekly_code_display = weekly_code.copy()
+    weekly_code_display["week_label"] = weekly_code_display["week"].dt.strftime("%b %d")
+    week_order = weekly_code_display.sort_values("week")["week_label"].tolist()
+
+    code_chart_data = weekly_code_display.melt(id_vars=["week", "week_label"], var_name="Metric", value_name="Lines")
     code_chart = alt.Chart(code_chart_data).mark_bar().encode(
-        x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d", values=weekly_code["week"].tolist())),
-        y=alt.Y("Lines:Q", title="Lines of Code", stack=None),
+        x=alt.X("week_label:N", title="Week", sort=week_order),
+        y=alt.Y("Lines:Q", title="Lines of Code"),
         color=alt.Color("Metric:N", scale=alt.Scale(
             domain=["Lines Added", "Lines Deleted"],
             range=["#22c55e", "#ef4444"]
         )),
         xOffset="Metric:N",
-        tooltip=[alt.Tooltip("week:T", format="%b %d, %Y"), "Metric:N", "Lines:Q"],
+        tooltip=["week_label:N", "Metric:N", "Lines:Q"],
     ).properties(height=250)
     st.altair_chart(code_chart, use_container_width=True)
 else:
