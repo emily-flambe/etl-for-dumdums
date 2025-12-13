@@ -84,11 +84,18 @@ if selected_categories:
         .reset_index()
     )
 
+    # Get unique month count for proper tick spacing
+    unique_months = trend_agg["sale_month"].nunique()
+
     trend_chart = (
         alt.Chart(trend_agg)
         .mark_line(point=True)
         .encode(
-            x=alt.X("sale_month:T", title="Month", axis=alt.Axis(format="%b %Y")),
+            x=alt.X(
+                "sale_month:T",
+                title="Month",
+                axis=alt.Axis(format="%b %Y", tickCount=unique_months),
+            ),
             y=alt.Y("total_sales:Q", title="Sales ($)", axis=alt.Axis(format="$,.0f")),
             color=alt.Color("category_name:N", title="Category"),
             tooltip=[
@@ -141,11 +148,11 @@ st.dataframe(
     hide_index=True,
     column_config={
         "category_name": st.column_config.TextColumn("Category"),
-        "total_sales": st.column_config.NumberColumn("Sales", format="$%,.0f"),
-        "total_bottles": st.column_config.NumberColumn("Bottles", format="%,d"),
-        "avg_bottle_price": st.column_config.NumberColumn("Avg Price", format="$%.2f"),
+        "total_sales": st.column_config.NumberColumn("Sales ($)", format="%.0f"),
+        "total_bottles": st.column_config.NumberColumn("Bottles", format="%d"),
+        "avg_bottle_price": st.column_config.NumberColumn("Avg Price ($)", format="%.2f"),
         "store_count": st.column_config.NumberColumn("Stores", format="%d"),
-        "mom_change": st.column_config.NumberColumn("MoM %", format="%.1f%%"),
+        "mom_change": st.column_config.NumberColumn("MoM %", format="%.1f"),
     },
 )
 
@@ -192,8 +199,8 @@ with col2:
         hide_index=True,
         column_config={
             "county": st.column_config.TextColumn("County"),
-            "total_sales": st.column_config.NumberColumn("Sales", format="$%,.0f"),
-            "store_count": st.column_config.NumberColumn("Stores"),
+            "total_sales": st.column_config.NumberColumn("Sales ($)", format="%.0f"),
+            "store_count": st.column_config.NumberColumn("Stores", format="%d"),
             "top_category": st.column_config.TextColumn("Top Category"),
         },
     )
@@ -241,9 +248,9 @@ with col2:
         hide_index=True,
         column_config={
             "vendor_name": st.column_config.TextColumn("Vendor"),
-            "total_sales": st.column_config.NumberColumn("Sales", format="$%,.0f"),
-            "product_count": st.column_config.NumberColumn("Products"),
-            "avg_bottle_price": st.column_config.NumberColumn("Avg Price", format="$%.2f"),
+            "total_sales": st.column_config.NumberColumn("Sales ($)", format="%.0f"),
+            "product_count": st.column_config.NumberColumn("Products", format="%d"),
+            "avg_bottle_price": st.column_config.NumberColumn("Avg Price ($)", format="%.2f"),
         },
     )
 
@@ -293,11 +300,11 @@ st.dataframe(
     column_config={
         "sale_month": st.column_config.TextColumn("Month"),
         "category_name": st.column_config.TextColumn("Category"),
-        "total_sales": st.column_config.NumberColumn("Sales", format="$%,.0f"),
-        "total_bottles": st.column_config.NumberColumn("Bottles", format="%,d"),
-        "total_volume_liters": st.column_config.NumberColumn("Volume (L)", format="%,.0f"),
-        "transaction_count": st.column_config.NumberColumn("Transactions", format="%,d"),
-        "avg_bottle_price": st.column_config.NumberColumn("Avg Price", format="$%.2f"),
+        "total_sales": st.column_config.NumberColumn("Sales ($)", format="%.0f"),
+        "total_bottles": st.column_config.NumberColumn("Bottles", format="%d"),
+        "total_volume_liters": st.column_config.NumberColumn("Volume (L)", format="%.0f"),
+        "transaction_count": st.column_config.NumberColumn("Transactions", format="%d"),
+        "avg_bottle_price": st.column_config.NumberColumn("Avg Price ($)", format="%.2f"),
         "store_count": st.column_config.NumberColumn("Stores", format="%d"),
     },
 )

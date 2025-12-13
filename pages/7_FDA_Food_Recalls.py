@@ -331,52 +331,47 @@ if not filtered_by_state.empty:
         column_order=["state_code", "state_name", "total_recalls", "class_i_recalls", "class_ii_recalls", "class_iii_recalls"],
     )
 
-# Recent recalls table
-st.subheader("Recent Recalls")
+# Recent recalls table - aggregated by recall event
+st.subheader("Recent Recall Events")
 
-recent_recalls = filtered_data.head(20).copy()
-if not recent_recalls.empty:
-    recent_recalls["recall_initiation_date"] = recent_recalls["recall_initiation_date"].dt.strftime("%Y-%m-%d")
+if not filtered_data.empty:
+    # Aggregate by recall event (same date/firm/reason/state/classification = one event)
+    # Get first row's topics for each group since they should be the same
+    recall_events = (
+        filtered_data.groupby(
+            ["recall_initiation_date", "recalling_firm", "reason_for_recall", "state_code", "classification"],
+            dropna=False
+        )
+        .agg(
+            product_count=("recall_number", "count"),
+            topics=("topics", "first"),  # Same for all rows in group
+        )
+        .reset_index()
+        .sort_values("recall_initiation_date", ascending=False)
+        .head(20)
+    )
+
+    # Format date for display
+    recall_events["recall_initiation_date"] = recall_events["recall_initiation_date"].dt.strftime("%Y-%m-%d")
 
     # Format topics array as comma-separated string for display
-    if "topics" in recent_recalls.columns:
-        recent_recalls["topics_display"] = recent_recalls["topics"].apply(
-            lambda x: ", ".join(x) if isinstance(x, list) and len(x) > 0 else "None identified"
-        )
+    recall_events["topics_display"] = recall_events["topics"].apply(
+        lambda x: ", ".join(x) if isinstance(x, list) and len(x) > 0 else "None identified"
+    )
 
     st.dataframe(
-        recent_recalls,
+        recall_events,
         use_container_width=True,
         hide_index=True,
         column_config={
-            "recall_number": st.column_config.TextColumn("Recall #", width="small"),
             "recall_initiation_date": st.column_config.TextColumn("Date", width="small"),
             "classification": st.column_config.TextColumn("Class", width="small"),
             "state_code": st.column_config.TextColumn("State", width="small"),
             "recalling_firm": st.column_config.TextColumn("Firm", width="medium"),
+            "product_count": st.column_config.NumberColumn("Products", format="%d", width="small"),
             "topics_display": st.column_config.TextColumn("Topics", width="medium"),
             "reason_for_recall": st.column_config.TextColumn("Reason", width="large"),
-            # Hide all other columns
             "topics": None,
-            "topic_count": None,
-            "has_pathogen": None,
-            "has_allergen": None,
-            "is_listeria": None,
-            "is_salmonella": None,
-            "is_ecoli": None,
-            "is_other_pathogen": None,
-            "is_milk": None,
-            "is_eggs": None,
-            "is_peanuts": None,
-            "is_tree_nuts": None,
-            "is_wheat": None,
-            "is_soy": None,
-            "is_fish": None,
-            "is_shellfish": None,
-            "is_sesame": None,
-            "is_foreign_material": None,
-            "is_labeling": None,
-            "is_temperature": None,
         },
-        column_order=["recall_number", "recall_initiation_date", "classification", "state_code", "recalling_firm", "topics_display", "reason_for_recall"],
+        column_order=["recall_initiation_date", "classification", "state_code", "recalling_firm", "product_count", "topics_display", "reason_for_recall"],
     )
