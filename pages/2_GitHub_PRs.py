@@ -172,7 +172,7 @@ if has_code_data:
     code_chart_data = weekly_code.melt(id_vars=["week"], var_name="Metric", value_name="Lines")
     code_chart = alt.Chart(code_chart_data).mark_bar().encode(
         x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d", values=weekly_code["week"].tolist())),
-        y=alt.Y("Lines:Q", title="Lines of Code"),
+        y=alt.Y("Lines:Q", title="Lines of Code", stack=None),
         color=alt.Color("Metric:N", scale=alt.Scale(
             domain=["Lines Added", "Lines Deleted"],
             range=["#22c55e", "#ef4444"]
