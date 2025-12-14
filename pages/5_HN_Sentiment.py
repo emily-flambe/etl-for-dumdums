@@ -74,6 +74,23 @@ selected_keywords = st.pills(
 # Sidebar filters
 st.sidebar.header("Filters")
 
+# Date range filter
+min_date = df["day"].min().date()
+max_date = df["day"].max().date()
+
+date_range = st.sidebar.date_input(
+    "Date range",
+    value=(min_date, max_date),
+    min_value=min_date,
+    max_value=max_date,
+)
+
+# Handle single date selection
+if isinstance(date_range, tuple) and len(date_range) == 2:
+    start_date, end_date = date_range
+else:
+    start_date = end_date = date_range
+
 min_comments = st.sidebar.slider(
     "Min comments per day",
     min_value=1,
@@ -82,13 +99,15 @@ min_comments = st.sidebar.slider(
 )
 
 # Apply filters
+date_mask = (df["day"].dt.date >= start_date) & (df["day"].dt.date <= end_date)
 if selected_keywords:
     filtered = df[
         (df["keyword"].isin(selected_keywords)) &
-        (df["comment_count"] >= min_comments)
+        (df["comment_count"] >= min_comments) &
+        date_mask
     ]
 else:
-    filtered = df[df["comment_count"] >= min_comments]
+    filtered = df[(df["comment_count"] >= min_comments) & date_mask]
 
 if filtered.empty:
     st.warning("No data matches the current filters. Try adjusting the keyword selection or minimum comment threshold.")
