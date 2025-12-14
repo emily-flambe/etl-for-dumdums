@@ -49,3 +49,7 @@ docs/
 # Scripts not needed in container
 scripts/
 Makefile
+
+# Private pages with PII (not for public deployment)
+pages/1_Linear_Issues.py
+pages/2_GitHub_PRs.py

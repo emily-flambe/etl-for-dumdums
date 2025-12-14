@@ -13,7 +13,7 @@ FULL ?=
         dbt-run dbt-run-linear dbt-run-github dbt-run-oura dbt-run-hacker-news dbt-run-trends dbt-run-fda-food dbt-run-iowa-liquor \
         dbt-test dbt-test-linear dbt-test-github dbt-test-oura dbt-test-hacker-news dbt-test-trends dbt-test-fda-food dbt-test-iowa-liquor \
         dbt-compile dbt-debug dbt-deps dbt-clean dbt-docs dbt-docs-serve dbt-seed dbt-snapshot \
-        app test
+        app app-public deploy test
 
 # Default target
 help:
@@ -57,6 +57,7 @@ help:
 	@echo "App:"
 	@echo "  make app                  - Run Streamlit dashboard (all pages)"
 	@echo "  make app-public           - Run in public mode (hides PII pages)"
+	@echo "  make deploy               - Deploy to Google Cloud Run"
 	@echo ""
 	@echo "Tests:"
 	@echo "  make test                 - Run all Python tests"
@@ -218,6 +219,9 @@ app:
 
 app-public:
 	DEPLOYMENT_MODE=public uv run streamlit run app.py
+
+deploy:
+	./deploy.sh
 
 # ---------- Tests ----------
 

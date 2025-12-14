@@ -279,3 +279,26 @@ def load_fda_event_reactions():
     ORDER BY event_date DESC
     """
     return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_fda_events_monthly_by_industry():
+    """Load FDA food adverse events monthly trends by product industry."""
+    client = get_client()
+    query = """
+    SELECT
+        event_month_start as month,
+        EXTRACT(YEAR FROM event_month_start) as year,
+        industry_name,
+        COUNT(DISTINCT report_number) as event_count,
+        COUNTIF(has_gastrointestinal) as gastrointestinal_count,
+        COUNTIF(has_allergic) as allergic_count,
+        COUNTIF(has_respiratory) as respiratory_count,
+        COUNT(DISTINCT CASE WHEN REGEXP_CONTAINS(outcomes, r'Hospitalization') THEN report_number END) as hospitalization_count
+    FROM fda_food.int_fda__food_event_reactions
+    WHERE industry_name IS NOT NULL
+      AND event_month_start IS NOT NULL
+    GROUP BY event_month_start, industry_name
+    ORDER BY event_month_start DESC, event_count DESC
+    """
+    return client.query(query).to_dataframe()
