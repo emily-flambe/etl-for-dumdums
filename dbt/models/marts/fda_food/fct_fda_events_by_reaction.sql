@@ -8,6 +8,7 @@
 
 -- Aggregates FDA food adverse events by reaction category
 -- Uses rollup flags to prevent double-counting when events have multiple reactions
+-- Adds parent category for grouping in visualizations
 
 with events as (
     select * from {{ ref('int_fda__food_event_reactions') }}
@@ -39,17 +40,48 @@ by_reaction as (
         max(event_year) as last_year
     from unnested
     group by category
+),
+
+-- Add parent category mapping
+with_parent_category as (
+    select
+        reaction,
+        event_count,
+        female_count,
+        male_count,
+        hospitalization_count,
+        death_count,
+        round(hospitalization_count * 100.0 / nullif(event_count, 0), 1) as hospitalization_pct,
+        first_year,
+        last_year,
+        case
+            when reaction in ('Diarrhea', 'Vomiting', 'Nausea', 'Abdominal Pain', 'Dyspepsia', 'Bloating', 'Constipation')
+                then 'Gastrointestinal'
+            when reaction in ('Hypersensitivity', 'Itching', 'Rash', 'Hives', 'Anaphylaxis', 'Swelling')
+                then 'Allergic'
+            when reaction in ('Breathing Difficulty', 'Choking', 'Swallowing Difficulty', 'Asthma', 'Cough')
+                then 'Respiratory'
+            when reaction in ('High Blood Pressure', 'High Heart Rate', 'Chest Pain', 'Palpitations', 'Arrhythmia')
+                then 'Cardiovascular'
+            when reaction in ('Headache', 'Dizziness', 'Loss of Consciousness', 'Tremor', 'Tingling/Numbness', 'Seizure')
+                then 'Neurological'
+            when reaction in ('Malaise', 'Fatigue', 'Weakness', 'Fever', 'Chills', 'Dehydration')
+                then 'Systemic'
+            else 'Other'
+        end as reaction_category
+    from by_reaction
 )
 
 select
     reaction,
+    reaction_category,
     event_count,
     female_count,
     male_count,
     hospitalization_count,
     death_count,
-    round(hospitalization_count * 100.0 / nullif(event_count, 0), 1) as hospitalization_pct,
+    hospitalization_pct,
     first_year,
     last_year
-from by_reaction
+from with_parent_category
 order by event_count desc

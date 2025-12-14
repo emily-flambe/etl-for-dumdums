@@ -299,60 +299,108 @@ if selected_industries:
 else:
     st.info("Select at least one industry to see trends.")
 
-# --- Reaction Categories by Industry (Grouped Bar Chart) ---
-st.subheader("Reaction Categories by Industry")
+# --- Reaction Breakdown: Two Views ---
+st.subheader("Industry & Reaction Breakdown")
+
+st.markdown("""
+Two views of the same data: **(1)** For each industry, what reactions are most common?
+**(2)** For each reaction type, which industries report it most?
+""")
 
 if selected_industries:
     # Get data for selected industries
-    bar_industries = product_df[product_df["industry_name"].isin(selected_industries)].copy()
+    breakdown_industries = product_df[product_df["industry_name"].isin(selected_industries)].copy()
+    breakdown_industries = breakdown_industries.sort_values("event_count", ascending=False)
 
-    # Reshape for grouped bar chart
-    bar_data = []
-    for _, row in bar_industries.iterrows():
+    # Build data for stacked bars
+    stacked_data = []
+    for _, row in breakdown_industries.iterrows():
         industry = row["industry_name"]
-        total = row["event_count"]
-        if total > 0:
-            for cat, col in [("GI", "gastrointestinal_count"), ("Allergic", "allergic_count"),
-                           ("Respiratory", "respiratory_count"), ("Cardiovascular", "cardiovascular_count"),
-                           ("Neurological", "neurological_count"), ("Systemic", "systemic_count")]:
-                pct = row[col] / total * 100 if col in row else 0
-                bar_data.append({
-                    "Industry": industry,
-                    "Category": cat,
-                    "Percentage": round(pct, 1),
-                    "Count": row[col] if col in row else 0
-                })
+        for cat_name, col in [
+            ("GI", "gastrointestinal_count"),
+            ("Allergic", "allergic_count"),
+            ("Respiratory", "respiratory_count"),
+            ("Cardio", "cardiovascular_count"),
+            ("Neuro", "neurological_count"),
+            ("Systemic", "systemic_count"),
+        ]:
+            stacked_data.append({
+                "Industry": industry,
+                "Reaction": cat_name,
+                "Count": row[col],
+                "Industry Events": row["event_count"],
+            })
 
-    if bar_data:
-        bar_df = pd.DataFrame(bar_data)
+    if stacked_data:
+        stacked_df = pd.DataFrame(stacked_data)
 
-        grouped_bar_chart = (
-            alt.Chart(bar_df)
-            .mark_bar()
-            .encode(
-                x=alt.X("Category:N", title="Reaction Category", axis=alt.Axis(labelAngle=0)),
-                y=alt.Y("Percentage:Q", title="% of Events with Reaction"),
-                color=alt.Color(
-                    "Industry:N",
-                    title="Industry",
-                    scale=alt.Scale(scheme="tableau10"),
-                    legend=alt.Legend(orient="top", columns=2, labelLimit=300)
-                ),
-                xOffset="Industry:N",
-                tooltip=[
-                    alt.Tooltip("Industry:N", title="Industry"),
-                    alt.Tooltip("Category:N", title="Category"),
-                    alt.Tooltip("Percentage:Q", title="% of Events", format=".1f"),
-                    alt.Tooltip("Count:Q", title="Event Count", format=",d"),
-                ],
-            )
-            .properties(height=400)
+        # Calculate percentages for each view
+        # View 1: % of industry's events with this reaction
+        stacked_df["Pct of Industry"] = round(stacked_df["Count"] / stacked_df["Industry Events"] * 100, 1)
+
+        # View 2: For each reaction, % coming from this industry
+        reaction_totals = stacked_df.groupby("Reaction")["Count"].transform("sum")
+        stacked_df["Pct of Reaction"] = round(stacked_df["Count"] / reaction_totals * 100, 1)
+
+        # Color scheme for reactions (consistent)
+        reaction_colors = alt.Scale(
+            domain=["GI", "Allergic", "Respiratory", "Cardio", "Neuro", "Systemic"],
+            range=["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#a65628"]
         )
-        st.altair_chart(grouped_bar_chart, use_container_width=True)
 
-        st.caption("Note: Percentages may exceed 100% total because a single event can have multiple reaction types.")
+        # Color scheme for industries (different palette)
+        industry_list = breakdown_industries["industry_name"].tolist()
+        industry_colors = alt.Scale(domain=industry_list, scheme="tableau10")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("**By Industry:** What reactions does each industry report?")
+
+            chart1 = (
+                alt.Chart(stacked_df)
+                .mark_bar()
+                .encode(
+                    x=alt.X("Count:Q", title="Number of Events"),
+                    y=alt.Y("Industry:N", title=None, sort="-x", axis=alt.Axis(labelLimit=180)),
+                    color=alt.Color("Reaction:N", scale=reaction_colors, legend=alt.Legend(orient="bottom", columns=3)),
+                    order=alt.Order("Reaction:N"),
+                    tooltip=[
+                        alt.Tooltip("Industry:N", title="Industry"),
+                        alt.Tooltip("Reaction:N", title="Reaction Type"),
+                        alt.Tooltip("Count:Q", title="Events", format=",d"),
+                        alt.Tooltip("Pct of Industry:Q", title="% of Industry Events", format=".1f"),
+                    ],
+                )
+                .properties(height=max(200, len(selected_industries) * 35))
+            )
+            st.altair_chart(chart1, use_container_width=True)
+
+        with col2:
+            st.markdown("**By Reaction:** Which industries report each reaction?")
+
+            chart2 = (
+                alt.Chart(stacked_df)
+                .mark_bar()
+                .encode(
+                    x=alt.X("Count:Q", title="Number of Events"),
+                    y=alt.Y("Reaction:N", title=None, sort=["GI", "Systemic", "Neuro", "Allergic", "Respiratory", "Cardio"]),
+                    color=alt.Color("Industry:N", scale=industry_colors, legend=alt.Legend(orient="bottom", columns=2, labelLimit=150)),
+                    order=alt.Order("Industry:N"),
+                    tooltip=[
+                        alt.Tooltip("Reaction:N", title="Reaction Type"),
+                        alt.Tooltip("Industry:N", title="Industry"),
+                        alt.Tooltip("Count:Q", title="Events", format=",d"),
+                        alt.Tooltip("Pct of Reaction:Q", title="% of This Reaction", format=".1f"),
+                    ],
+                )
+                .properties(height=250)
+            )
+            st.altair_chart(chart2, use_container_width=True)
+
+        st.caption("Stacked bars show event counts. Hover for percentages. Note: One event can have multiple reaction types.")
 else:
-    st.info("Select at least one industry to see the chart.")
+    st.info("Select at least one industry to see the breakdown.")
 
 # --- Top Reactions ---
 st.subheader("Top Adverse Reactions")
@@ -507,6 +555,69 @@ with col2:
         },
     )
 
+# --- Reaction Details by Category ---
+with st.expander("View Specific Reactions by Category"):
+    st.markdown("""
+    Each category above contains specific reaction types. Click a category tab to see
+    which specific reactions it includes, sorted by frequency.
+    """)
+
+    # Check if reaction_category column exists (after dbt rebuild)
+    if "reaction_category" in reaction_df.columns:
+        # Calculate global max hospitalization % for consistent color scale across all tabs
+        global_max_hosp_pct = reaction_df["hospitalization_pct"].max()
+        color_domain_max = max(5, global_max_hosp_pct)  # At least 5% for scale
+
+        category_tabs = st.tabs(["Gastrointestinal", "Allergic", "Respiratory", "Cardiovascular", "Neurological", "Systemic"])
+
+        for tab, cat_name in zip(category_tabs, ["Gastrointestinal", "Allergic", "Respiratory", "Cardiovascular", "Neurological", "Systemic"]):
+            with tab:
+                cat_reactions = reaction_df[reaction_df["reaction_category"] == cat_name].copy()
+                cat_reactions = cat_reactions.sort_values("event_count", ascending=False)
+
+                if not cat_reactions.empty:
+                    # Show bar chart with consistent color scale
+                    cat_chart = (
+                        alt.Chart(cat_reactions)
+                        .mark_bar()
+                        .encode(
+                            x=alt.X("event_count:Q", title="Number of Events"),
+                            y=alt.Y("reaction:N", title="Specific Reaction", sort="-x", axis=alt.Axis(labelLimit=200)),
+                            color=alt.Color(
+                                "hospitalization_pct:Q",
+                                scale=alt.Scale(
+                                    range=["#fdd49e", "#d7301f"],  # Light orange to dark red
+                                    domain=[0, color_domain_max]  # Consistent scale across all tabs
+                                ),
+                                title="Hospitalization %",
+                            ),
+                            tooltip=[
+                                alt.Tooltip("reaction:N", title="Reaction"),
+                                alt.Tooltip("event_count:Q", title="Events", format=",d"),
+                                alt.Tooltip("hospitalization_pct:Q", title="Hospitalization %", format=".1f"),
+                            ],
+                        )
+                        .properties(height=max(250, len(cat_reactions) * 45))
+                    )
+                    st.altair_chart(cat_chart, use_container_width=True)
+
+                    # Show table below chart
+                    st.dataframe(
+                        cat_reactions[["reaction", "event_count", "hospitalization_pct", "death_count"]],
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            "reaction": st.column_config.TextColumn("Reaction"),
+                            "event_count": st.column_config.NumberColumn("Events", format="%d"),
+                            "hospitalization_pct": st.column_config.NumberColumn("Hosp %", format="%.1f"),
+                            "death_count": st.column_config.NumberColumn("Deaths", format="%d"),
+                        },
+                    )
+                else:
+                    st.info(f"No {cat_name.lower()} reactions found.")
+    else:
+        st.info("Run `make dbt-fda-food` to rebuild models with reaction categories.")
+
 # --- Gender Distribution (only shows when toggle is enabled) ---
 if breakout_by_gender:
     st.subheader("Event Distribution by Gender")
@@ -610,23 +721,3 @@ if breakout_by_gender:
             )
             st.altair_chart(gender_reaction_chart, use_container_width=True)
 
-# --- Monthly Data Table ---
-with st.expander("View Monthly Data Table"):
-    display_monthly = monthly_filtered.copy()
-    display_monthly["month"] = display_monthly["month"].dt.strftime("%Y-%m")
-
-    st.dataframe(
-        display_monthly[["month", "event_count", "gastrointestinal_count", "allergic_count",
-                         "respiratory_count", "hospitalization_count", "death_count"]],
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "month": st.column_config.TextColumn("Month"),
-            "event_count": st.column_config.NumberColumn("Events", format="%d"),
-            "gastrointestinal_count": st.column_config.NumberColumn("GI", format="%d"),
-            "allergic_count": st.column_config.NumberColumn("Allergic", format="%d"),
-            "respiratory_count": st.column_config.NumberColumn("Respiratory", format="%d"),
-            "hospitalization_count": st.column_config.NumberColumn("Hospitalizations", format="%d"),
-            "death_count": st.column_config.NumberColumn("Deaths", format="%d"),
-        },
-    )

@@ -41,7 +41,36 @@ staged as (
         products_brand_name as brand_name,
         products_industry_code as industry_code,
         products_role as product_role,
-        products_industry_name as industry_name,
+        -- Clean up cryptic industry names for readability
+        case
+            when products_industry_name = 'Vit/Min/Prot/Unconv Diet(Human/Animal)'
+                then 'Vitamins & Supplements'
+            when products_industry_name = 'Cosmetics'
+                then 'Cosmetics'
+            when products_industry_name = 'Whole Grain/Milled Grain Prod/Starch'
+                then 'Grains & Starches'
+            when products_industry_name = 'Soft Drink/Water'
+                then 'Beverages (Non-Alcoholic)'
+            when products_industry_name = 'Fruit/Fruit Prod'
+                then 'Fruits & Fruit Products'
+            when products_industry_name = 'Vegetable/Vegetable Products'
+                then 'Vegetables & Vegetable Products'
+            when products_industry_name = 'Fishery/Seafood Prod'
+                then 'Seafood'
+            when products_industry_name = 'Nut/Edible Seed'
+                then 'Nuts & Seeds'
+            when products_industry_name = 'Milk/Butter/Dried Milk Prod'
+                then 'Dairy Products'
+            when products_industry_name = 'Ice Cream Prod'
+                then 'Ice Cream & Frozen Desserts'
+            when products_industry_name = 'Bakery Prod/Dough/Mix/Icing'
+                then 'Bakery Products'
+            when products_industry_name = 'Choc/Cocoa Prod'
+                then 'Chocolate & Cocoa'
+            when products_industry_name = 'Baby Food Prod'
+                then 'Baby Food'
+            else products_industry_name
+        end as industry_name,
 
         -- Dates
         date_created as report_date,

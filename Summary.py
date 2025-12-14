@@ -16,6 +16,10 @@ from data import (
     load_oura_daily,
     load_hn_weekly_stats,
     load_keyword_trends,
+    load_hn_keyword_sentiment,
+    load_fda_recalls_raw,
+    load_iowa_liquor_monthly,
+    load_fda_events_monthly,
 )
 
 # Check deployment mode
@@ -93,6 +97,22 @@ except Exception as e:
 
 st.divider()
 
+# HN Sentiment (public)
+st.markdown("#### HN Sentiment")
+try:
+    hn_sentiment = load_hn_keyword_sentiment()
+    latest_day = hn_sentiment["day"].max()
+    total_comments = hn_sentiment["comment_count"].sum()
+    keywords_tracked = hn_sentiment["keyword"].nunique()
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Latest Day", str(latest_day)[:10] if latest_day else "N/A")
+    col2.metric("Comments Analyzed", f"{total_comments:,}")
+    col3.metric("Keywords Tracked", keywords_tracked)
+except Exception as e:
+    st.warning(f"Could not load HN Sentiment data: {e}")
+
+st.divider()
+
 # Google Trends (public)
 st.markdown("#### Google Trends")
 try:
@@ -106,3 +126,51 @@ try:
     col3.metric("Avg Interest", f"{avg_interest:.0f}" if avg_interest else "N/A")
 except Exception as e:
     st.warning(f"Could not load Google Trends data: {e}")
+
+st.divider()
+
+# FDA Food Recalls (public)
+st.markdown("#### FDA Food Recalls")
+try:
+    recalls = load_fda_recalls_raw()
+    latest_date = recalls["recall_initiation_date"].max()
+    total_recalls = len(recalls)
+    class_i_count = len(recalls[recalls["classification"] == "Class I"])
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Latest Recall", str(latest_date)[:10] if latest_date else "N/A")
+    col2.metric("Total Recalls", f"{total_recalls:,}")
+    col3.metric("Class I (Serious)", f"{class_i_count:,}")
+except Exception as e:
+    st.warning(f"Could not load FDA Food Recalls data: {e}")
+
+st.divider()
+
+# Iowa Liquor Sales (public)
+st.markdown("#### Iowa Liquor Sales")
+try:
+    liquor = load_iowa_liquor_monthly()
+    latest_month = liquor["sale_month"].max()
+    total_sales = liquor["total_sales"].sum()
+    total_bottles = liquor["total_bottles"].sum()
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Latest Month", str(latest_month)[:10] if latest_month else "N/A")
+    col2.metric("Total Sales", f"${total_sales/1e6:.1f}M")
+    col3.metric("Bottles Sold", f"{total_bottles/1e6:.1f}M")
+except Exception as e:
+    st.warning(f"Could not load Iowa Liquor Sales data: {e}")
+
+st.divider()
+
+# FDA Food Events (public)
+st.markdown("#### FDA Food Events")
+try:
+    events = load_fda_events_monthly()
+    latest_month = events["month"].max()
+    total_events = events["event_count"].sum()
+    total_hospitalizations = events["hospitalization_count"].sum()
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Latest Month", str(latest_month)[:10] if latest_month else "N/A")
+    col2.metric("Total Events", f"{total_events:,}")
+    col3.metric("Hospitalizations", f"{total_hospitalizations:,}")
+except Exception as e:
+    st.warning(f"Could not load FDA Food Events data: {e}")
