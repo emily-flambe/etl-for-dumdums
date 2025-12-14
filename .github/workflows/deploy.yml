@@ -41,12 +41,20 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v3
 
-      - name: Build and push with Cloud Build
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev --quiet
+
+      - name: Build Docker image
         run: |
           IMAGE="${ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/${SERVICE_NAME}"
-          gcloud builds submit \
-              --tag ${IMAGE}:${{ github.sha }} \
-              --project ${PROJECT_ID}
+          docker build --platform linux/amd64 -t ${IMAGE}:${{ github.sha }} -t ${IMAGE}:latest .
+
+      - name: Push Docker image
+        run: |
+          IMAGE="${ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/${SERVICE_NAME}"
+          docker push ${IMAGE}:${{ github.sha }}
+          docker push ${IMAGE}:latest
 
       - name: Deploy to Cloud Run
         run: |
