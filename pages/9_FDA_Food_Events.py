@@ -14,6 +14,8 @@ from data import (
     load_fda_events_by_product,
     load_fda_events_monthly,
     load_fda_events_monthly_by_industry,
+    load_fda_events_by_gender,
+    load_fda_events_monthly_by_gender,
 )
 
 st.title("FDA Food Adverse Events")
@@ -42,6 +44,8 @@ reaction_df = load_fda_events_by_reaction()
 product_df = load_fda_events_by_product()
 monthly_df = load_fda_events_monthly()
 monthly_industry_df = load_fda_events_monthly_by_industry()
+gender_df = load_fda_events_by_gender()
+monthly_gender_df = load_fda_events_monthly_by_gender()
 
 if reaction_df.empty:
     st.warning("No event data available. Run the sync and dbt pipeline first.")
@@ -51,6 +55,7 @@ if reaction_df.empty:
 # Prepare data
 monthly_df["month"] = pd.to_datetime(monthly_df["month"])
 monthly_industry_df["month"] = pd.to_datetime(monthly_industry_df["month"])
+monthly_gender_df["month"] = pd.to_datetime(monthly_gender_df["month"])
 
 # --- Filters Section ---
 st.subheader("Filters")
@@ -62,7 +67,7 @@ max_date = monthly_df["month"].max().date()
 default_start = pd.Timestamp(max_date) - pd.DateOffset(years=10)
 default_start = max(default_start.date(), min_date)
 
-col_start, col_end, col_spacer = st.columns([1, 1, 4])
+col_start, col_end, col_toggle, col_spacer = st.columns([1, 1, 1, 3])
 with col_start:
     start_date = st.date_input(
         "Start Date",
@@ -77,6 +82,8 @@ with col_end:
         min_value=min_date,
         max_value=max_date,
     )
+with col_toggle:
+    breakout_by_gender = st.toggle("Break out by Gender", value=False)
 
 # Industry pills
 st.markdown("**Product Industries**")
@@ -143,6 +150,11 @@ monthly_industry_filtered = monthly_industry_df[
     (monthly_industry_df["month"].dt.date <= end_date)
 ].copy()
 
+monthly_gender_filtered = monthly_gender_df[
+    (monthly_gender_df["month"].dt.date >= start_date) &
+    (monthly_gender_df["month"].dt.date <= end_date)
+].copy()
+
 # --- Summary Metrics ---
 st.subheader("Summary")
 
@@ -158,7 +170,10 @@ col3.metric("Deaths", f"{total_deaths:,}")
 col4.metric("Hospitalization Rate", f"{hosp_rate:.1f}%")
 
 # --- Reaction Category Trends ---
-st.subheader("Reaction Category Trends Over Time")
+if breakout_by_gender:
+    st.subheader("Event Trends by Gender Over Time")
+else:
+    st.subheader("Reaction Category Trends Over Time")
 
 # Reshape monthly data for category trends
 category_cols = {
@@ -173,7 +188,43 @@ category_cols = {
 # Filter to selected categories
 active_category_cols = {k: v for k, v in category_cols.items() if k in (selected_categories or [])}
 
-if active_category_cols:
+if breakout_by_gender:
+    # Show trends broken out by gender
+    gender_trend_agg = (
+        monthly_gender_filtered.groupby(["month", "gender"])
+        .agg({"event_count": "sum"})
+        .reset_index()
+    )
+
+    if not gender_trend_agg.empty:
+        gender_trend_chart = (
+            alt.Chart(gender_trend_agg)
+            .mark_line(point=True)
+            .encode(
+                x=alt.X("month:T", title="Month", axis=alt.Axis(format="%b %Y")),
+                y=alt.Y("event_count:Q", title="Number of Events"),
+                color=alt.Color(
+                    "gender:N",
+                    title="Gender",
+                    scale=alt.Scale(
+                        domain=["Female", "Male", "Not Reported", "Other"],
+                        range=["#e377c2", "#1f77b4", "#7f7f7f", "#bcbd22"]
+                    ),
+                    legend=alt.Legend(orient="top")
+                ),
+                strokeDash=alt.StrokeDash("gender:N", legend=None),
+                tooltip=[
+                    alt.Tooltip("month:T", title="Month", format="%B %Y"),
+                    alt.Tooltip("gender:N", title="Gender"),
+                    alt.Tooltip("event_count:Q", title="Events", format=",d"),
+                ],
+            )
+            .properties(height=350)
+        )
+        st.altair_chart(gender_trend_chart, use_container_width=True)
+    else:
+        st.info("No gender data available for the selected date range.")
+elif active_category_cols:
     # Melt data for multi-line chart
     category_trend_data = monthly_filtered[["month"] + list(active_category_cols.values())].melt(
         id_vars=["month"],
@@ -451,6 +502,109 @@ with col2:
             "Percentage": st.column_config.NumberColumn("Share %", format="%.1f"),
         },
     )
+
+# --- Gender Distribution (only shows when toggle is enabled) ---
+if breakout_by_gender:
+    st.subheader("Event Distribution by Gender")
+
+    # Aggregate gender data from filtered date range
+    gender_agg = (
+        monthly_gender_filtered.groupby("gender")
+        .agg({
+            "event_count": "sum",
+            "hospitalization_count": "sum",
+            "gastrointestinal_count": "sum",
+            "allergic_count": "sum",
+        })
+        .reset_index()
+    )
+
+    if not gender_agg.empty:
+        total_gender_events = gender_agg["event_count"].sum()
+        gender_agg["Percentage"] = (gender_agg["event_count"] / total_gender_events * 100).round(1)
+        gender_agg["Hosp Rate"] = (gender_agg["hospitalization_count"] / gender_agg["event_count"] * 100).round(1)
+
+        col1, col2 = st.columns([2, 1])
+
+        with col1:
+            gender_chart = (
+                alt.Chart(gender_agg)
+                .mark_bar()
+                .encode(
+                    x=alt.X("event_count:Q", title="Number of Events"),
+                    y=alt.Y("gender:N", title="Gender", sort="-x"),
+                    color=alt.Color(
+                        "gender:N",
+                        title="Gender",
+                        scale=alt.Scale(
+                            domain=["Female", "Male", "Not Reported", "Other"],
+                            range=["#e377c2", "#1f77b4", "#7f7f7f", "#bcbd22"]
+                        ),
+                        legend=None
+                    ),
+                    tooltip=[
+                        alt.Tooltip("gender:N", title="Gender"),
+                        alt.Tooltip("event_count:Q", title="Events", format=",d"),
+                        alt.Tooltip("Percentage:Q", title="Share %", format=".1f"),
+                        alt.Tooltip("hospitalization_count:Q", title="Hospitalizations", format=",d"),
+                        alt.Tooltip("Hosp Rate:Q", title="Hosp Rate %", format=".1f"),
+                    ],
+                )
+                .properties(height=200)
+            )
+            st.altair_chart(gender_chart, use_container_width=True)
+
+        with col2:
+            st.dataframe(
+                gender_agg[["gender", "event_count", "Percentage", "Hosp Rate"]].rename(columns={
+                    "gender": "Gender",
+                    "event_count": "Events",
+                }),
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Gender": st.column_config.TextColumn("Gender"),
+                    "Events": st.column_config.NumberColumn("Events", format="%d"),
+                    "Percentage": st.column_config.NumberColumn("Share %", format="%.1f"),
+                    "Hosp Rate": st.column_config.NumberColumn("Hosp %", format="%.1f"),
+                },
+            )
+
+        # Reaction categories by gender
+        st.markdown("**Reaction Categories by Gender**")
+
+        # Build data for stacked bar chart
+        gender_reaction_data = []
+        for _, row in gender_agg.iterrows():
+            gender = row["gender"]
+            total = row["event_count"]
+            if total > 0:
+                gender_reaction_data.append({"Gender": gender, "Category": "Gastrointestinal", "Events": row["gastrointestinal_count"]})
+                gender_reaction_data.append({"Gender": gender, "Category": "Allergic", "Events": row["allergic_count"]})
+
+        if gender_reaction_data:
+            gender_reaction_df = pd.DataFrame(gender_reaction_data)
+
+            gender_reaction_chart = (
+                alt.Chart(gender_reaction_df)
+                .mark_bar()
+                .encode(
+                    x=alt.X("Gender:N", title="Gender"),
+                    y=alt.Y("Events:Q", title="Number of Events", stack="zero"),
+                    color=alt.Color(
+                        "Category:N",
+                        scale=alt.Scale(scheme="tableau10"),
+                        legend=alt.Legend(orient="top")
+                    ),
+                    tooltip=[
+                        alt.Tooltip("Gender:N", title="Gender"),
+                        alt.Tooltip("Category:N", title="Category"),
+                        alt.Tooltip("Events:Q", title="Events", format=",d"),
+                    ],
+                )
+                .properties(height=300)
+            )
+            st.altair_chart(gender_reaction_chart, use_container_width=True)
 
 # --- Monthly Data Table ---
 with st.expander("View Monthly Data Table"):

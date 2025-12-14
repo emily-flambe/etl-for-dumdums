@@ -109,6 +109,7 @@ One dataset per source. Raw tables prefixed with `raw_`, dbt models in same data
 | `CLOUDFLARE_ACCOUNT_ID` | ETL | Cloudflare account ID (for Workers AI) |
 | `CLOUDFLARE_WORKERS_AI_TOKEN` | ETL | Cloudflare Workers AI API token |
 | `DEPLOYMENT_MODE` | Streamlit | `local` (all pages) or `public` (public pages only) |
+| `OURA_PAGE_PASSWORD` | Streamlit | Password to protect Oura page in public deployment |
 
 ## Common Commands
 

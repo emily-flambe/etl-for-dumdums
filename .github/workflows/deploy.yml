@@ -72,7 +72,7 @@ jobs:
               --memory 1Gi \
               --cpu 1 \
               --timeout 300 \
-              --set-env-vars "DEPLOYMENT_MODE=public,GCP_PROJECT_ID=${PROJECT_ID},GCP_SA_KEY_FILE=/secrets/gcp-sa-key/credentials.json" \
+              --set-env-vars "DEPLOYMENT_MODE=public,GCP_PROJECT_ID=${PROJECT_ID},GCP_SA_KEY_FILE=/secrets/gcp-sa-key/credentials.json,OURA_PAGE_PASSWORD=${{ secrets.OURA_PAGE_PASSWORD }}" \
               --set-secrets "/secrets/gcp-sa-key/credentials.json=etl-dashboard-gcp-sa:latest" \
               --project ${PROJECT_ID}
 

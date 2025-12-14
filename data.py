@@ -302,3 +302,46 @@ def load_fda_events_monthly_by_industry():
     ORDER BY event_month_start DESC, event_count DESC
     """
     return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_fda_events_by_gender():
+    """Load FDA food adverse events aggregated by gender."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM fda_food.fct_fda_events_by_gender
+    ORDER BY event_count DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_fda_events_monthly_by_gender():
+    """Load FDA food adverse events monthly trends by gender."""
+    client = get_client()
+    query = """
+    SELECT
+        event_month_start as month,
+        EXTRACT(YEAR FROM event_month_start) as year,
+        CASE
+            WHEN UPPER(gender) IN ('F', 'FEMALE') THEN 'Female'
+            WHEN UPPER(gender) IN ('M', 'MALE') THEN 'Male'
+            WHEN gender IS NULL OR TRIM(gender) = '' THEN 'Not Reported'
+            ELSE 'Other'
+        END as gender,
+        COUNT(DISTINCT report_number) as event_count,
+        COUNTIF(has_gastrointestinal) as gastrointestinal_count,
+        COUNTIF(has_allergic) as allergic_count,
+        COUNTIF(has_respiratory) as respiratory_count,
+        COUNTIF(has_cardiovascular) as cardiovascular_count,
+        COUNTIF(has_neurological) as neurological_count,
+        COUNTIF(has_systemic) as systemic_count,
+        COUNT(DISTINCT CASE WHEN REGEXP_CONTAINS(outcomes, r'Hospitalization') THEN report_number END) as hospitalization_count
+    FROM fda_food.int_fda__food_event_reactions
+    WHERE event_month_start IS NOT NULL
+      AND UPPER(product_role) = 'SUSPECT'
+    GROUP BY event_month_start, gender
+    ORDER BY event_month_start DESC, event_count DESC
+    """
+    return client.query(query).to_dataframe()

@@ -2,13 +2,48 @@
 Oura Wellness dashboard.
 """
 
+import os
 from datetime import date, timedelta
 
 import altair as alt
 import pandas as pd
 import streamlit as st
+from dotenv import load_dotenv
 
 from data import load_oura_daily
+
+load_dotenv()
+
+# Password protection for public deployment
+DEPLOYMENT_MODE = os.environ.get("DEPLOYMENT_MODE", "local")
+OURA_PAGE_PASSWORD = os.environ.get("OURA_PAGE_PASSWORD", "")
+
+def check_password():
+    """Returns True if password is correct or not required."""
+    if DEPLOYMENT_MODE != "public" or not OURA_PAGE_PASSWORD:
+        return True
+
+    if "oura_authenticated" not in st.session_state:
+        st.session_state.oura_authenticated = False
+
+    if st.session_state.oura_authenticated:
+        return True
+
+    st.title("Oura Wellness")
+    st.info("This page contains personal health data and requires a password to access.")
+    password = st.text_input("Enter password:", type="password")
+
+    if password:
+        if password == OURA_PAGE_PASSWORD:
+            st.session_state.oura_authenticated = True
+            st.rerun()
+        else:
+            st.error("Incorrect password")
+
+    return False
+
+if not check_password():
+    st.stop()
 
 st.title("Oura Wellness")
 
