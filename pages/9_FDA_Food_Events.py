@@ -299,16 +299,16 @@ if selected_industries:
 else:
     st.info("Select at least one industry to see trends.")
 
-# --- Reaction vs Industry Heatmap ---
+# --- Reaction Categories by Industry (Grouped Bar Chart) ---
 st.subheader("Reaction Categories by Industry")
 
 if selected_industries:
     # Get data for selected industries
-    heatmap_industries = product_df[product_df["industry_name"].isin(selected_industries)].copy()
+    bar_industries = product_df[product_df["industry_name"].isin(selected_industries)].copy()
 
-    # Reshape for heatmap
-    heatmap_data = []
-    for _, row in heatmap_industries.iterrows():
+    # Reshape for grouped bar chart
+    bar_data = []
+    for _, row in bar_industries.iterrows():
         industry = row["industry_name"]
         total = row["event_count"]
         if total > 0:
@@ -316,27 +316,29 @@ if selected_industries:
                            ("Respiratory", "respiratory_count"), ("Cardiovascular", "cardiovascular_count"),
                            ("Neurological", "neurological_count"), ("Systemic", "systemic_count")]:
                 pct = row[col] / total * 100 if col in row else 0
-                heatmap_data.append({
+                bar_data.append({
                     "Industry": industry,
                     "Category": cat,
                     "Percentage": round(pct, 1),
                     "Count": row[col] if col in row else 0
                 })
 
-    if heatmap_data:
-        heatmap_df = pd.DataFrame(heatmap_data)
+    if bar_data:
+        bar_df = pd.DataFrame(bar_data)
 
-        heatmap_chart = (
-            alt.Chart(heatmap_df)
-            .mark_rect()
+        grouped_bar_chart = (
+            alt.Chart(bar_df)
+            .mark_bar()
             .encode(
-                x=alt.X("Category:N", title="Reaction Category"),
-                y=alt.Y("Industry:N", title="Product Industry", sort="-x", axis=alt.Axis(labelLimit=400)),
+                x=alt.X("Category:N", title="Reaction Category", axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("Percentage:Q", title="% of Events with Reaction"),
                 color=alt.Color(
-                    "Percentage:Q",
-                    scale=alt.Scale(scheme="orangered"),
-                    title="% of Events"
+                    "Industry:N",
+                    title="Industry",
+                    scale=alt.Scale(scheme="tableau10"),
+                    legend=alt.Legend(orient="top", columns=2, labelLimit=300)
                 ),
+                xOffset="Industry:N",
                 tooltip=[
                     alt.Tooltip("Industry:N", title="Industry"),
                     alt.Tooltip("Category:N", title="Category"),
@@ -346,9 +348,11 @@ if selected_industries:
             )
             .properties(height=400)
         )
-        st.altair_chart(heatmap_chart, use_container_width=True)
+        st.altair_chart(grouped_bar_chart, use_container_width=True)
+
+        st.caption("Note: Percentages may exceed 100% total because a single event can have multiple reaction types.")
 else:
-    st.info("Select at least one industry to see the heatmap.")
+    st.info("Select at least one industry to see the chart.")
 
 # --- Top Reactions ---
 st.subheader("Top Adverse Reactions")
