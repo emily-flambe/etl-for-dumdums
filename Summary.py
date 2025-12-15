@@ -20,6 +20,8 @@ from data import (
     load_fda_recalls_raw,
     load_iowa_liquor_monthly,
     load_fda_events_monthly,
+    load_stock_prices,
+    load_sector_performance,
 )
 
 # Check deployment mode
@@ -174,3 +176,20 @@ try:
     col3.metric("Hospitalizations", f"{total_hospitalizations:,}")
 except Exception as e:
     st.warning(f"Could not load FDA Food Events data: {e}")
+
+st.divider()
+
+# Stock Prices (public)
+st.markdown("#### Stock Prices")
+try:
+    stocks = load_stock_prices()
+    sectors = load_sector_performance()
+    latest_date = stocks["trade_date"].max()
+    tickers_count = stocks["ticker"].nunique()
+    gainers = len(sectors[sectors["avg_daily_change_pct"] > 0]) if not sectors.empty else 0
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Latest Date", str(latest_date)[:10] if latest_date else "N/A")
+    col2.metric("Tickers Tracked", tickers_count)
+    col3.metric("Sectors Up", f"{gainers}/5")
+except Exception as e:
+    st.warning(f"Could not load Stock Prices data: {e}")
