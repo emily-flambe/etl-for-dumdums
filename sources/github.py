@@ -194,11 +194,13 @@ class GitHubPullRequestsSource(Source):
         bigquery.SchemaField("title", "STRING"),
         bigquery.SchemaField("state", "STRING"),
         bigquery.SchemaField("merged", "BOOLEAN"),
+        bigquery.SchemaField("draft", "BOOLEAN"),
         bigquery.SchemaField("author_id", "STRING"),
         bigquery.SchemaField("created_at", "TIMESTAMP"),
         bigquery.SchemaField("updated_at", "TIMESTAMP"),
         bigquery.SchemaField("merged_at", "TIMESTAMP"),
         bigquery.SchemaField("closed_at", "TIMESTAMP"),
+        bigquery.SchemaField("ready_for_review_at", "TIMESTAMP"),
         bigquery.SchemaField("additions", "INTEGER"),
         bigquery.SchemaField("deletions", "INTEGER"),
         bigquery.SchemaField("changed_files", "INTEGER"),
@@ -277,10 +279,40 @@ class GitHubPullRequestsSource(Source):
                         pr["additions"] = pr_detail.get("additions")
                         pr["deletions"] = pr_detail.get("deletions")
                         pr["changed_files"] = pr_detail.get("changed_files")
+                        pr["draft"] = pr_detail.get("draft", False)
                     except Exception as e:
                         logger.warning(
                             f"Failed to fetch details for PR #{pr['number']}: {e}"
                         )
+
+                    # Fetch timeline to get ready_for_review timestamp
+                    # For PRs that were never draft, ready_for_review_at = created_at
+                    pr["ready_for_review_at"] = None
+                    if not pr.get("draft", False):
+                        timeline_url = f"{GITHUB_API_URL}/repos/{repo}/issues/{pr['number']}/timeline"
+                        try:
+                            time.sleep(API_DELAY_SECONDS)
+                            response = requests.get(
+                                timeline_url,
+                                headers={**headers, "Accept": "application/vnd.github.mockingbird-preview+json"},
+                                timeout=30
+                            )
+                            response.raise_for_status()
+                            events = response.json()
+                            # Find the ready_for_review event
+                            for event in events:
+                                if event.get("event") == "ready_for_review":
+                                    pr["ready_for_review_at"] = event.get("created_at")
+                                    break
+                            # If no ready_for_review event, PR was created as non-draft
+                            if pr["ready_for_review_at"] is None:
+                                pr["ready_for_review_at"] = pr["created_at"]
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to fetch timeline for PR #{pr['number']}: {e}"
+                            )
+                            # Fall back to created_at
+                            pr["ready_for_review_at"] = pr["created_at"]
 
                     pr["_repo"] = repo_name
                     all_prs.append(pr)
@@ -303,11 +335,13 @@ class GitHubPullRequestsSource(Source):
                 "title": pr["title"],
                 "state": pr["state"],
                 "merged": pr.get("merged_at") is not None,
+                "draft": pr.get("draft", False),
                 "author_id": str(pr["user"]["id"]) if pr.get("user") else None,
                 "created_at": pr["created_at"],
                 "updated_at": pr["updated_at"],
                 "merged_at": pr.get("merged_at"),
                 "closed_at": pr.get("closed_at"),
+                "ready_for_review_at": pr.get("ready_for_review_at"),
                 "additions": pr.get("additions"),
                 "deletions": pr.get("deletions"),
                 "changed_files": pr.get("changed_files"),

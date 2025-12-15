@@ -90,6 +90,43 @@ def load_reviewer_activity():
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_review_matrix():
+    """Load reviewer-to-author review counts for heatmap visualization.
+
+    Returns a DataFrame with columns: reviewer, author, pr_count
+    Each row represents how many unique PRs a reviewer commented on for a given author.
+    Only includes teammates who have opened a PR within the past month.
+    """
+    client = get_client()
+    query = """
+    WITH recent_authors AS (
+        -- Find users who have authored a PR in the last 30 days
+        SELECT DISTINCT author_id
+        FROM github.fct_pull_requests
+        WHERE created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+    )
+    SELECT
+        ra.reviewer_username as reviewer,
+        u.username as author,
+        COUNT(DISTINCT ra.pull_request_id) as pr_count
+    FROM github.fct_reviewer_activity ra
+    INNER JOIN github.stg_github__users u
+        ON ra.pr_author_id = u.user_id
+    -- Only include reviewers who have recently authored PRs
+    INNER JOIN recent_authors ra_reviewer
+        ON ra.reviewer_id = ra_reviewer.author_id
+    -- Only include authors who have recently authored PRs
+    INNER JOIN recent_authors ra_author
+        ON ra.pr_author_id = ra_author.author_id
+    WHERE ra.reviewer_username IS NOT NULL
+      AND u.username IS NOT NULL
+    GROUP BY ra.reviewer_username, u.username
+    ORDER BY pr_count DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
 def load_hn_weekly_stats():
     """Load Hacker News weekly statistics from BigQuery."""
     client = get_client()
@@ -343,5 +380,29 @@ def load_fda_events_monthly_by_gender():
       AND UPPER(product_role) = 'SUSPECT'
     GROUP BY event_month_start, gender
     ORDER BY event_month_start DESC, event_count DESC
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_stock_prices():
+    """Load stock prices with technical indicators from BigQuery."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM stocks.fct_stock_prices
+    ORDER BY trade_date DESC, ticker
+    """
+    return client.query(query).to_dataframe()
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_sector_performance():
+    """Load sector-level performance metrics from BigQuery."""
+    client = get_client()
+    query = """
+    SELECT *
+    FROM stocks.fct_sector_performance
+    ORDER BY avg_daily_change_pct DESC
     """
     return client.query(query).to_dataframe()

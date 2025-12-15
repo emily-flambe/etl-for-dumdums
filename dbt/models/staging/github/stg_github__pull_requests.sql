@@ -10,11 +10,14 @@ staged as (
         title,
         state,
         merged as is_merged,
+        draft as is_draft,
         author_id,
         created_at,
         updated_at,
         merged_at,
         closed_at,
+        -- Use ready_for_review_at if available, otherwise fall back to created_at
+        coalesce(ready_for_review_at, created_at) as ready_for_review_at,
         additions,
         deletions,
         changed_files

@@ -10,7 +10,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from data import load_pull_requests, load_reviewer_activity
+from data import load_pull_requests, load_review_matrix, load_reviewer_activity
 
 st.title("GitHub Pull Requests")
 
@@ -302,6 +302,76 @@ with col2:
         )
     else:
         st.info("No merged PRs in selected range")
+
+# Review Matrix Heatmap
+st.subheader("Review Matrix")
+st.caption("Number of PRs each reviewer commented on, by PR author")
+
+try:
+    review_matrix = load_review_matrix()
+    if len(review_matrix) > 0:
+        # Filter to selected authors and reviewers (both dimensions should match selected authors)
+        review_matrix_filtered = review_matrix[
+            (review_matrix["reviewer"].isin(selected_authors)) &
+            (review_matrix["author"].isin(selected_authors))
+        ]
+
+        if len(review_matrix_filtered) > 0:
+            # Create a complete matrix with all author combinations (fill missing with 0)
+            all_users = sorted(set(review_matrix_filtered["reviewer"]) | set(review_matrix_filtered["author"]))
+            complete_matrix = []
+            for reviewer in all_users:
+                for author in all_users:
+                    existing = review_matrix_filtered[
+                        (review_matrix_filtered["reviewer"] == reviewer) &
+                        (review_matrix_filtered["author"] == author)
+                    ]
+                    pr_count = existing["pr_count"].iloc[0] if len(existing) > 0 else 0
+                    complete_matrix.append({
+                        "reviewer": reviewer,
+                        "author": author,
+                        "pr_count": pr_count
+                    })
+            matrix_df = pd.DataFrame(complete_matrix)
+
+            # Create heatmap
+            heatmap = alt.Chart(matrix_df).mark_rect().encode(
+                x=alt.X("author:N", title="PR Author", sort=all_users),
+                y=alt.Y("reviewer:N", title="Reviewer", sort=all_users),
+                color=alt.Color(
+                    "pr_count:Q",
+                    title="PRs Reviewed",
+                    scale=alt.Scale(scheme="blues"),
+                    legend=alt.Legend(orient="right")
+                ),
+                tooltip=[
+                    alt.Tooltip("reviewer:N", title="Reviewer"),
+                    alt.Tooltip("author:N", title="Author"),
+                    alt.Tooltip("pr_count:Q", title="PRs Reviewed"),
+                ]
+            ).properties(
+                height=max(300, len(all_users) * 40)
+            )
+
+            # Add text labels
+            text = alt.Chart(matrix_df).mark_text(baseline="middle", fontSize=12).encode(
+                x=alt.X("author:N", sort=all_users),
+                y=alt.Y("reviewer:N", sort=all_users),
+                text="pr_count:Q",
+                color=alt.condition(
+                    alt.datum.pr_count > matrix_df["pr_count"].max() / 2,
+                    alt.value("white"),
+                    alt.value("black")
+                )
+            )
+
+            st.altair_chart(heatmap + text, use_container_width=True)
+        else:
+            st.info("No review data for selected authors")
+    else:
+        st.info("No review matrix data available")
+except Exception as e:
+    st.warning(f"Could not load review matrix: {e}")
 
 # Data table (collapsed by default)
 with st.expander("View PR Data"):

@@ -68,6 +68,7 @@ final as (
         pr.title as pr_title,
         pr.author_id as pr_author_id,
         pr.created_at as pr_created_at,
+        pr.ready_for_review_at as pr_ready_for_review_at,
         pr.merged_at as pr_merged_at,
         pr.state as pr_state,
 
@@ -79,16 +80,17 @@ final as (
         coalesce(ap.review_count, 0) as review_count,
         coalesce(ap.comment_count, 0) as comment_count,
 
-        -- Response time metrics (hours)
+        -- Response time metrics (hours) - measured from ready_for_review_at
+        -- This avoids penalizing PRs that were in draft state for a long time
         case
             when ap.first_review_at is not null then
-                timestamp_diff(ap.first_review_at, pr.created_at, hour)
+                timestamp_diff(ap.first_review_at, pr.ready_for_review_at, hour)
             else null
         end as time_to_first_review_hours,
 
         case
             when ap.first_comment_at is not null then
-                timestamp_diff(ap.first_comment_at, pr.created_at, hour)
+                timestamp_diff(ap.first_comment_at, pr.ready_for_review_at, hour)
             else null
         end as time_to_first_comment_hours,
 
@@ -105,7 +107,7 @@ final as (
                         coalesce(ap.first_review_at, ap.first_comment_at),
                         coalesce(ap.first_comment_at, ap.first_review_at)
                     ),
-                    pr.created_at,
+                    pr.ready_for_review_at,
                     hour
                 )
             else null
