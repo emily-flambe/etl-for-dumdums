@@ -132,7 +132,7 @@ with_arrays as (
                 if(is_dehydration, 'Dehydration', null)
             ]) as category
             where category is not null
-        ) as reaction_categories,
+        ) as reaction_categories_raw,
 
         -- Rollup flags for category groups (prevents double-counting in aggregations)
         (is_diarrhea or is_vomiting or is_nausea or is_abdominal_pain or is_dyspepsia or is_bloating or is_constipation) as has_gastrointestinal,
@@ -143,6 +143,20 @@ with_arrays as (
         (is_malaise or is_fatigue or is_weakness or is_fever or is_chills or is_dehydration) as has_systemic
 
     from with_categories
+),
+
+-- Add "Other" category for events with no matched reactions
+with_other as (
+    select
+        *,
+        -- If no categories matched, add "Other" to capture uncategorized reactions
+        case
+            when array_length(reaction_categories_raw) = 0 then ['Other']
+            else reaction_categories_raw
+        end as reaction_categories,
+        -- Flag for events with uncategorized reactions
+        array_length(reaction_categories_raw) = 0 as has_other
+    from with_arrays
 )
 
 select
@@ -168,6 +182,7 @@ select
     has_cardiovascular,
     has_neurological,
     has_systemic,
+    has_other,
     -- Individual flags for flexible querying
     is_diarrhea,
     is_vomiting,
@@ -182,4 +197,4 @@ select
     is_anaphylaxis,
     is_seizure
 
-from with_arrays
+from with_other

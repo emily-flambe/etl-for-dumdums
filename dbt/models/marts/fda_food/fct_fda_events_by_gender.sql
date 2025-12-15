@@ -39,6 +39,7 @@ by_gender as (
         countif(has_cardiovascular) as cardiovascular_count,
         countif(has_neurological) as neurological_count,
         countif(has_systemic) as systemic_count,
+        countif(has_other) as other_count,
 
         -- Severity indicators
         count(distinct case when regexp_contains(outcomes, r'Hospitalization') then report_number end) as hospitalization_count,
@@ -57,6 +58,7 @@ select
     cardiovascular_count,
     neurological_count,
     systemic_count,
+    other_count,
     hospitalization_count,
     death_count,
     round(hospitalization_count * 100.0 / nullif(event_count, 0), 1) as hospitalization_pct,
@@ -65,6 +67,7 @@ select
     round(respiratory_count * 100.0 / nullif(event_count, 0), 1) as respiratory_pct,
     round(cardiovascular_count * 100.0 / nullif(event_count, 0), 1) as cardiovascular_pct,
     round(neurological_count * 100.0 / nullif(event_count, 0), 1) as neurological_pct,
-    round(systemic_count * 100.0 / nullif(event_count, 0), 1) as systemic_pct
+    round(systemic_count * 100.0 / nullif(event_count, 0), 1) as systemic_pct,
+    round(other_count * 100.0 / nullif(event_count, 0), 1) as other_pct
 from by_gender
 order by event_count desc

@@ -28,20 +28,42 @@ then analyzed for positive/negative sentiment.
 1. Stories with tracked keywords (AI, React, etc.) are identified
 2. Comments on those stories are extracted
 3. Each comment is scored for sentiment (positive/negative) using Cloudflare AI
-4. Results are aggregated by keyword and day for trend visualization
+4. Results are aggregated by keyword and week for trend visualization
 
 *Note: Sentiment scores reflect the tone of discussion, not factual accuracy or quality.*
 """)
 
-df = load_hn_keyword_sentiment()
+df_daily = load_hn_keyword_sentiment()
 
-if df.empty:
+if df_daily.empty:
     st.warning("No sentiment data available. Run the sync and dbt pipeline first.")
     st.code("make run-hacker-news")
     st.stop()
 
-# Convert day to datetime for Altair
-df["day"] = pd.to_datetime(df["day"])
+# Convert day to datetime
+df_daily["day"] = pd.to_datetime(df_daily["day"])
+
+# Aggregate by week for smoother trends with more data
+df_daily["week"] = df_daily["day"].dt.to_period("W").dt.start_time
+
+df = (
+    df_daily.groupby(["week", "keyword"])
+    .agg({
+        "comment_count": "sum",
+        "story_count": "sum",
+        # Weighted averages by comment count
+        "avg_sentiment": lambda x: (x * df_daily.loc[x.index, "comment_count"]).sum() / df_daily.loc[x.index, "comment_count"].sum(),
+        "positive_pct": lambda x: (x * df_daily.loc[x.index, "comment_count"]).sum() / df_daily.loc[x.index, "comment_count"].sum(),
+        "negative_pct": lambda x: (x * df_daily.loc[x.index, "comment_count"]).sum() / df_daily.loc[x.index, "comment_count"].sum(),
+        "neutral_pct": lambda x: (x * df_daily.loc[x.index, "comment_count"]).sum() / df_daily.loc[x.index, "comment_count"].sum(),
+    })
+    .reset_index()
+)
+
+# Calculate week-over-week change
+df = df.sort_values(["keyword", "week"])
+df["sentiment_wow_change"] = df.groupby("keyword")["avg_sentiment"].diff()
+df = df.sort_values(["week", "comment_count"], ascending=[False, False])
 
 # Keyword selection with pills
 st.subheader("Select Keywords")
@@ -75,8 +97,8 @@ selected_keywords = st.pills(
 st.sidebar.header("Filters")
 
 # Date range filter
-min_date = df["day"].min().date()
-max_date = df["day"].max().date()
+min_date = df["week"].min().date()
+max_date = df["week"].max().date()
 
 date_range = st.sidebar.date_input(
     "Date range",
@@ -92,14 +114,14 @@ else:
     start_date = end_date = date_range
 
 min_comments = st.sidebar.slider(
-    "Min comments per day",
+    "Min comments per week",
     min_value=1,
-    max_value=50,
-    value=3,
+    max_value=100,
+    value=10,
 )
 
 # Apply filters
-date_mask = (df["day"].dt.date >= start_date) & (df["day"].dt.date <= end_date)
+date_mask = (df["week"].dt.date >= start_date) & (df["week"].dt.date <= end_date)
 if selected_keywords:
     filtered = df[
         (df["keyword"].isin(selected_keywords)) &
@@ -113,17 +135,17 @@ if filtered.empty:
     st.warning("No data matches the current filters. Try adjusting the keyword selection or minimum comment threshold.")
     st.stop()
 
-# Metrics for most recent day
-st.subheader("Latest Day")
-latest_day = filtered["day"].max()
-latest = filtered[filtered["day"] == latest_day].sort_values("comment_count", ascending=False)
+# Metrics for most recent week
+st.subheader("Latest Week")
+latest_week = filtered["week"].max()
+latest = filtered[filtered["week"] == latest_week].sort_values("comment_count", ascending=False)
 
 if not latest.empty:
     cols = st.columns(min(len(latest), 5))
     for i, (_, row) in enumerate(latest.iterrows()):
         if i >= len(cols):
             break
-        delta = row["sentiment_dod_change"]
+        delta = row["sentiment_wow_change"]
         delta_str = f"{delta:+.2f}" if pd.notna(delta) else None
         cols[i].metric(
             row["keyword"],
@@ -140,11 +162,11 @@ if selected_keywords:
         alt.Chart(filtered)
         .mark_line(point=True)
         .encode(
-            x=alt.X("day:T", title="Day", axis=alt.Axis(format="%b %d")),
+            x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d")),
             y=alt.Y("avg_sentiment:Q", title="Avg Sentiment", scale=alt.Scale(domain=[-1, 1])),
             color=alt.Color("keyword:N", title="Keyword"),
             tooltip=[
-                alt.Tooltip("day:T", title="Day", format="%b %d, %Y"),
+                alt.Tooltip("week:T", title="Week of", format="%b %d, %Y"),
                 alt.Tooltip("keyword:N", title="Keyword"),
                 alt.Tooltip("avg_sentiment:Q", title="Avg Sentiment", format=".2f"),
                 alt.Tooltip("comment_count:Q", title="Comments"),
@@ -169,7 +191,7 @@ st.subheader("Sentiment Distribution")
 if selected_keywords:
     # Prepare data for stacked chart
     dist_data = filtered.melt(
-        id_vars=["day", "keyword"],
+        id_vars=["week", "keyword"],
         value_vars=["positive_pct", "neutral_pct", "negative_pct"],
         var_name="sentiment_type",
         value_name="percentage",
@@ -192,7 +214,7 @@ if selected_keywords:
             alt.Chart(kw_data)
             .mark_area()
             .encode(
-                x=alt.X("day:T", title="Day", axis=alt.Axis(format="%b %d")),
+                x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d")),
                 y=alt.Y("percentage:Q", title="Percentage", stack="normalize"),
                 color=alt.Color(
                     "sentiment_type:N",
@@ -203,7 +225,7 @@ if selected_keywords:
                     title="Sentiment",
                 ),
                 tooltip=[
-                    alt.Tooltip("day:T", title="Day", format="%b %d, %Y"),
+                    alt.Tooltip("week:T", title="Week of", format="%b %d, %Y"),
                     alt.Tooltip("sentiment_type:N", title="Type"),
                     alt.Tooltip("percentage:Q", title="Percentage", format=".1f"),
                 ],
@@ -216,18 +238,18 @@ else:
     st.info("Select keywords above to see sentiment distribution charts.")
 
 # Data table
-st.subheader("Raw Data")
+st.subheader("Weekly Data")
 
-display_df = filtered.sort_values(["day", "keyword"], ascending=[False, True]).copy()
+display_df = filtered.sort_values(["week", "keyword"], ascending=[False, True]).copy()
 # Format for display
-display_df["day"] = display_df["day"].dt.strftime("%Y-%m-%d")
+display_df["week"] = display_df["week"].dt.strftime("%Y-%m-%d")
 
 st.dataframe(
     display_df,
     use_container_width=True,
     hide_index=True,
     column_config={
-        "day": st.column_config.TextColumn("Day", width="small"),
+        "week": st.column_config.TextColumn("Week", width="small"),
         "keyword": st.column_config.TextColumn("Keyword", width="small"),
         "comment_count": st.column_config.NumberColumn("Comments", format="%d", width="small"),
         "story_count": st.column_config.NumberColumn("Stories", format="%d", width="small"),
@@ -235,11 +257,11 @@ st.dataframe(
         "positive_pct": st.column_config.NumberColumn("Positive %", format="%.1f", width="small"),
         "negative_pct": st.column_config.NumberColumn("Negative %", format="%.1f", width="small"),
         "neutral_pct": st.column_config.NumberColumn("Neutral %", format="%.1f", width="small"),
-        "sentiment_dod_change": st.column_config.NumberColumn("DoD Change", format="%.3f", width="small"),
+        "sentiment_wow_change": st.column_config.NumberColumn("WoW Change", format="%.3f", width="small"),
     },
     column_order=[
-        "day", "keyword", "comment_count", "story_count",
+        "week", "keyword", "comment_count", "story_count",
         "avg_sentiment", "positive_pct", "negative_pct", "neutral_pct",
-        "sentiment_dod_change"
+        "sentiment_wow_change"
     ],
 )

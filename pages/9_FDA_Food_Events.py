@@ -63,9 +63,9 @@ st.subheader("Filters")
 # Date range filter with date selectors
 min_date = monthly_df["month"].min().date()
 max_date = monthly_df["month"].max().date()
-# Default to last 10 years
-default_start = pd.Timestamp(max_date) - pd.DateOffset(years=10)
-default_start = max(default_start.date(), min_date)
+# Default to Jan 2024 (users can push back if needed)
+default_start = pd.Timestamp("2024-01-01").date()
+default_start = max(default_start, min_date)  # Ensure it's not before data starts
 
 col_start, col_end, col_toggle, col_spacer = st.columns([1, 1, 1, 3])
 with col_start:
@@ -113,7 +113,7 @@ selected_industries = st.pills(
 
 # Reaction category pills
 st.markdown("**Reaction Categories**")
-reaction_categories = ["Gastrointestinal", "Allergic", "Respiratory", "Cardiovascular", "Neurological", "Systemic"]
+reaction_categories = ["Gastrointestinal", "Allergic", "Respiratory", "Cardiovascular", "Neurological", "Systemic", "Other"]
 
 # Initialize session state for categories
 if "category_pills" not in st.session_state:
@@ -183,6 +183,7 @@ category_cols = {
     "Cardiovascular": "cardiovascular_count",
     "Neurological": "neurological_count",
     "Systemic": "systemic_count",
+    "Other": "other_count",
 }
 
 # Filter to selected categories
@@ -323,11 +324,14 @@ if selected_industries:
             ("Cardio", "cardiovascular_count"),
             ("Neuro", "neurological_count"),
             ("Systemic", "systemic_count"),
+            ("Other", "other_count"),
         ]:
+            # Handle missing "other_count" column gracefully
+            count_val = row.get(col, 0) if col in row.index else 0
             stacked_data.append({
                 "Industry": industry,
                 "Reaction": cat_name,
-                "Count": row[col],
+                "Count": count_val,
                 "Industry Events": row["event_count"],
             })
 
@@ -344,8 +348,8 @@ if selected_industries:
 
         # Color scheme for reactions (consistent)
         reaction_colors = alt.Scale(
-            domain=["GI", "Allergic", "Respiratory", "Cardio", "Neuro", "Systemic"],
-            range=["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#a65628"]
+            domain=["GI", "Allergic", "Respiratory", "Cardio", "Neuro", "Systemic", "Other"],
+            range=["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#a65628", "#7f7f7f"]
         )
 
         # Color scheme for industries (different palette)
@@ -363,7 +367,7 @@ if selected_industries:
                 .encode(
                     x=alt.X("Count:Q", title="Number of Events"),
                     y=alt.Y("Industry:N", title=None, sort="-x", axis=alt.Axis(labelLimit=180)),
-                    color=alt.Color("Reaction:N", scale=reaction_colors, legend=alt.Legend(orient="bottom", columns=3)),
+                    color=alt.Color("Reaction:N", scale=reaction_colors, legend=alt.Legend(orient="bottom", columns=4)),
                     order=alt.Order("Reaction:N"),
                     tooltip=[
                         alt.Tooltip("Industry:N", title="Industry"),
@@ -372,7 +376,7 @@ if selected_industries:
                         alt.Tooltip("Pct of Industry:Q", title="% of Industry Events", format=".1f"),
                     ],
                 )
-                .properties(height=max(200, len(selected_industries) * 35))
+                .properties(height=max(350, len(selected_industries) * 55))
             )
             st.altair_chart(chart1, use_container_width=True)
 
@@ -384,7 +388,7 @@ if selected_industries:
                 .mark_bar()
                 .encode(
                     x=alt.X("Count:Q", title="Number of Events"),
-                    y=alt.Y("Reaction:N", title=None, sort=["GI", "Systemic", "Neuro", "Allergic", "Respiratory", "Cardio"]),
+                    y=alt.Y("Reaction:N", title=None, sort=["GI", "Systemic", "Neuro", "Allergic", "Respiratory", "Cardio", "Other"]),
                     color=alt.Color("Industry:N", scale=industry_colors, legend=alt.Legend(orient="bottom", columns=2, labelLimit=150)),
                     order=alt.Order("Industry:N"),
                     tooltip=[
@@ -394,7 +398,7 @@ if selected_industries:
                         alt.Tooltip("Pct of Reaction:Q", title="% of This Reaction", format=".1f"),
                     ],
                 )
-                .properties(height=250)
+                .properties(height=420)
             )
             st.altair_chart(chart2, use_container_width=True)
 
@@ -503,8 +507,10 @@ with col2:
 st.subheader("Overall Reaction Category Distribution")
 
 # Aggregate reaction counts by category group from filtered data
+# Handle "other_count" column gracefully if it doesn't exist yet
+other_count_val = monthly_filtered["other_count"].sum() if "other_count" in monthly_filtered.columns else 0
 category_data = pd.DataFrame({
-    "Category": ["Gastrointestinal", "Allergic", "Respiratory", "Cardiovascular", "Neurological", "Systemic"],
+    "Category": ["Gastrointestinal", "Allergic", "Respiratory", "Cardiovascular", "Neurological", "Systemic", "Other"],
     "Events": [
         monthly_filtered["gastrointestinal_count"].sum(),
         monthly_filtered["allergic_count"].sum(),
@@ -512,6 +518,7 @@ category_data = pd.DataFrame({
         monthly_filtered["cardiovascular_count"].sum(),
         monthly_filtered["neurological_count"].sum(),
         monthly_filtered["systemic_count"].sum(),
+        other_count_val,
     ]
 })
 
@@ -568,9 +575,9 @@ with st.expander("View Specific Reactions by Category"):
         global_max_hosp_pct = reaction_df["hospitalization_pct"].max()
         color_domain_max = max(5, global_max_hosp_pct)  # At least 5% for scale
 
-        category_tabs = st.tabs(["Gastrointestinal", "Allergic", "Respiratory", "Cardiovascular", "Neurological", "Systemic"])
+        category_tabs = st.tabs(["Gastrointestinal", "Allergic", "Respiratory", "Cardiovascular", "Neurological", "Systemic", "Other"])
 
-        for tab, cat_name in zip(category_tabs, ["Gastrointestinal", "Allergic", "Respiratory", "Cardiovascular", "Neurological", "Systemic"]):
+        for tab, cat_name in zip(category_tabs, ["Gastrointestinal", "Allergic", "Respiratory", "Cardiovascular", "Neurological", "Systemic", "Other"]):
             with tab:
                 cat_reactions = reaction_df[reaction_df["reaction_category"] == cat_name].copy()
                 cat_reactions = cat_reactions.sort_values("event_count", ascending=False)

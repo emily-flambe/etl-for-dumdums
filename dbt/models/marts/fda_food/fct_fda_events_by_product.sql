@@ -53,6 +53,7 @@ by_industry as (
         countif(has_cardiovascular) as cardiovascular_count,
         countif(has_neurological) as neurological_count,
         countif(has_systemic) as systemic_count,
+        countif(has_other) as other_count,
 
         -- Severity indicators
         count(distinct case when regexp_contains(outcomes, r'Hospitalization') then report_number end) as hospitalization_count,
@@ -72,6 +73,7 @@ select
     bi.cardiovascular_count,
     bi.neurological_count,
     bi.systemic_count,
+    bi.other_count,
     bi.hospitalization_count,
     bi.death_count,
     round(bi.hospitalization_count * 100.0 / nullif(bi.event_count, 0), 1) as hospitalization_pct,

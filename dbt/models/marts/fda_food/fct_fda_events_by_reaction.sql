@@ -67,6 +67,8 @@ with_parent_category as (
                 then 'Neurological'
             when reaction in ('Malaise', 'Fatigue', 'Weakness', 'Fever', 'Chills', 'Dehydration')
                 then 'Systemic'
+            when reaction = 'Other'
+                then 'Other'
             else 'Other'
         end as reaction_category
     from by_reaction

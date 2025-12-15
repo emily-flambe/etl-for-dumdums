@@ -26,6 +26,7 @@ monthly as (
         countif(has_cardiovascular) as cardiovascular_count,
         countif(has_neurological) as neurological_count,
         countif(has_systemic) as systemic_count,
+        countif(has_other) as other_count,
 
         -- Severity indicators
         count(distinct case when regexp_contains(outcomes, r'Hospitalization') then report_number end) as hospitalization_count,
@@ -53,6 +54,7 @@ select
     cardiovascular_count,
     neurological_count,
     systemic_count,
+    other_count,
     hospitalization_count,
     death_count,
     female_count,
