@@ -25,7 +25,7 @@ DEFAULT_LOOKBACK_DAYS = 30  # Stories
 DEFAULT_COMMENTS_LOOKBACK_DAYS = 5  # Comments (limited due to Cloudflare AI rate limits)
 FULL_LOOKBACK_DAYS = 365 * 5  # 5 years (stories)
 FULL_COMMENTS_LOOKBACK_DAYS = 30  # 30 days (comments - limited by Cloudflare AI costs)
-DEFAULT_TOP_STORIES_PER_DAY = 30  # Focus on most active discussions
+DEFAULT_TOP_STORIES_PER_DAY = 100  # Top stories by comment count per day
 
 
 class HNStoriesSource(Source):
@@ -177,9 +177,11 @@ def analyze_sentiment_batch(
                     data = response.json()
 
                     if data.get("success") and data.get("result"):
-                        result = data["result"][0]
-                        label = result.get("label", "NEUTRAL")
-                        score = result.get("score", 0.5)
+                        # API returns both labels with scores, find the one with highest score
+                        results_list = data["result"]
+                        best_result = max(results_list, key=lambda x: x.get("score", 0))
+                        label = best_result.get("label", "NEUTRAL")
+                        score = best_result.get("score", 0.5)
 
                         # Convert to -1 to 1 scale
                         # POSITIVE with high confidence -> positive score

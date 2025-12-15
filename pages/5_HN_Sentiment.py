@@ -14,23 +14,24 @@ st.title("Hacker News Sentiment Trends")
 
 st.markdown("""
 Sentiment analysis of [Hacker News](https://news.ycombinator.com/) comments to gauge community
-opinion on technology topics. Comments are matched to stories containing tracked keywords,
-then analyzed for positive/negative sentiment.
+opinion on technology topics.
 
-**About the Data:**
-- **Source:** [BigQuery Public Dataset](https://console.cloud.google.com/bigquery?p=bigquery-public-data&d=hacker_news)
-  (`bigquery-public-data.hacker_news.full`)
-- **Sentiment Model:** [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
-  using DistilBERT (`@cf/huggingface/distilbert-sst-2-int8`)
-- **Updates:** Daily sync with sentiment computed during ETL
+**Methodology:**
+1. Each day, the **top 100 stories by comment count** are selected from the HN public dataset
+2. **Top-level comments** (direct replies to stories) are extracted from these stories
+3. Each comment is analyzed for sentiment using Cloudflare Workers AI (DistilBERT)
+4. Comments are matched to keywords if the **story title** contains that keyword (case-insensitive)
+5. Results are aggregated by keyword and week
 
-**How It Works:**
-1. Stories with tracked keywords (AI, React, etc.) are identified
-2. Comments on those stories are extracted
-3. Each comment is scored for sentiment (positive/negative) using Cloudflare AI
-4. Results are aggregated by keyword and week for trend visualization
+**Data Source:** [BigQuery Public Dataset](https://console.cloud.google.com/bigquery?p=bigquery-public-data&d=hacker_news)
+(`bigquery-public-data.hacker_news.full`)
 
-*Note: Sentiment scores reflect the tone of discussion, not factual accuracy or quality.*
+**Limitations:**
+- Only top-level comments are analyzed (not nested replies)
+- Keywords are matched against story titles only, not comment text
+- A story may match multiple keywords, so comments can appear in multiple categories
+
+*Sentiment scores reflect tone of discussion (-1 = negative, +1 = positive), not factual accuracy.*
 """)
 
 df_daily = load_hn_keyword_sentiment()
@@ -93,32 +94,33 @@ selected_keywords = st.pills(
     key="keyword_pills",
 )
 
-# Sidebar filters
-st.sidebar.header("Filters")
-
-# Date range filter
+# Filter options
 min_date = df["week"].min().date()
 max_date = df["week"].max().date()
 
-date_range = st.sidebar.date_input(
-    "Date range",
-    value=(min_date, max_date),
-    min_value=min_date,
-    max_value=max_date,
-)
+# Filters section
+with st.expander("Filters", expanded=True):
+    col1, col2 = st.columns(2)
+    with col1:
+        date_range = st.date_input(
+            "Date range",
+            value=(min_date, max_date),
+            min_value=min_date,
+            max_value=max_date,
+        )
+    with col2:
+        min_comments = st.slider(
+            "Min comments per week",
+            min_value=1,
+            max_value=100,
+            value=10,
+        )
 
 # Handle single date selection
 if isinstance(date_range, tuple) and len(date_range) == 2:
     start_date, end_date = date_range
 else:
     start_date = end_date = date_range
-
-min_comments = st.sidebar.slider(
-    "Min comments per week",
-    min_value=1,
-    max_value=100,
-    value=10,
-)
 
 # Apply filters
 date_mask = (df["week"].dt.date >= start_date) & (df["week"].dt.date <= end_date)
@@ -155,14 +157,20 @@ if not latest.empty:
         )
 
 # Sentiment over time chart
-st.subheader("Sentiment Over Time")
+st.subheader("Weekly Sentiment Trends")
+st.caption("Average sentiment score per week (-1 = negative, +1 = positive)")
 
 if selected_keywords:
+    # Get actual week values for axis ticks
+    week_values = sorted(filtered["week"].unique())
+
     sentiment_chart = (
         alt.Chart(filtered)
-        .mark_line(point=True)
+        .mark_line(point=alt.OverlayMarkDef(size=60, filled=True))
         .encode(
-            x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d")),
+            x=alt.X("week:T", title="Week Starting",
+                   scale=alt.Scale(domain=[min(week_values), max(week_values)]),
+                   axis=alt.Axis(format="%b %d", values=week_values)),
             y=alt.Y("avg_sentiment:Q", title="Avg Sentiment", scale=alt.Scale(domain=[-1, 1])),
             color=alt.Color("keyword:N", title="Keyword"),
             tooltip=[
@@ -186,7 +194,8 @@ else:
     st.info("Select at least one keyword to see sentiment trends.")
 
 # Sentiment distribution over time (stacked area charts)
-st.subheader("Sentiment Distribution")
+st.subheader("Weekly Sentiment Distribution")
+st.caption("Percentage of comments by sentiment category, aggregated by week")
 
 if selected_keywords:
     # Prepare data for stacked chart
@@ -202,6 +211,9 @@ if selected_keywords:
         "negative_pct": "Negative",
     })
 
+    # Get consistent week values across all keywords for axis ticks
+    all_week_values = sorted(dist_data["week"].unique())
+
     # One chart per keyword
     for keyword in selected_keywords:
         kw_data = dist_data[dist_data["keyword"] == keyword]
@@ -214,7 +226,9 @@ if selected_keywords:
             alt.Chart(kw_data)
             .mark_area()
             .encode(
-                x=alt.X("week:T", title="Week", axis=alt.Axis(format="%b %d")),
+                x=alt.X("week:T", title="Week Starting",
+                       scale=alt.Scale(domain=[min(all_week_values), max(all_week_values)]),
+                       axis=alt.Axis(format="%b %d", values=all_week_values)),
                 y=alt.Y("percentage:Q", title="Percentage", stack="normalize"),
                 color=alt.Color(
                     "sentiment_type:N",
@@ -233,7 +247,14 @@ if selected_keywords:
             .properties(height=200)
         )
 
-        st.altair_chart(area_chart, use_container_width=True)
+        # Add vertical tick marks to show data points
+        tick_marks = (
+            alt.Chart(kw_data[kw_data["sentiment_type"] == "Positive"])
+            .mark_rule(color="white", opacity=0.4, strokeWidth=1)
+            .encode(x="week:T")
+        )
+
+        st.altair_chart(area_chart + tick_marks, use_container_width=True)
 else:
     st.info("Select keywords above to see sentiment distribution charts.")
 
