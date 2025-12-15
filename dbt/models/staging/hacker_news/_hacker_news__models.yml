@@ -14,6 +14,8 @@ models:
           - not_null
       - name: title
         description: Story title
+        tests:
+          - not_null
       - name: url
         description: Link URL (null for text posts)
       - name: domain
@@ -22,10 +24,22 @@ models:
         description: Username who posted
       - name: score
         description: Upvote count
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              config:
+                where: "score is not null"
       - name: comment_count
         description: Number of comments
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              config:
+                where: "comment_count is not null"
       - name: posted_at
         description: When the story was posted
+        tests:
+          - not_null
       - name: posted_date
         description: Date the story was posted
       - name: posted_week
@@ -46,6 +60,12 @@ models:
         description: Parent item ID (story for top-level comments)
       - name: story_id
         description: Root story ID that this comment belongs to
+        tests:
+          - relationships:
+              to: ref('stg_hn__stories')
+              field: story_id
+              config:
+                where: "story_id is not null"
       - name: author
         description: Username who posted the comment
       - name: comment_text
@@ -54,11 +74,25 @@ models:
         description: Cleaned comment text with HTML removed
       - name: posted_at
         description: When the comment was posted
+        tests:
+          - not_null
       - name: posted_month
         description: Month the comment was posted (for aggregation)
       - name: sentiment_score
         description: Sentiment score from -1 (negative) to 1 (positive)
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: -1
+              max_value: 1
+              inclusive: true
+              config:
+                where: "sentiment_score is not null"
       - name: sentiment_label
         description: Raw label from model (POSITIVE/NEGATIVE)
       - name: sentiment_category
         description: Categorized sentiment (positive/negative/neutral)
+        tests:
+          - accepted_values:
+              values: ['positive', 'negative', 'neutral']
+              config:
+                where: "sentiment_category is not null"

@@ -16,7 +16,16 @@ models:
           - not_null
       - name: identifier
         description: Human-readable issue ID (e.g., ENG-123)
+        tests:
+          - not_null
       - name: assignee_email
         description: Email of assigned user (cross-platform join key)
       - name: cycle_name
         description: Name of the sprint/cycle
+      - name: child_count
+        description: Number of child issues
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              config:
+                where: "child_count is not null"

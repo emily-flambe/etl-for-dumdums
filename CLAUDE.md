@@ -211,19 +211,33 @@ The Streamlit app lives in `app.py` (home page) and `pages/` (sub-pages).
 
 ### Testing Streamlit Changes
 
-**IMPORTANT**: When modifying Streamlit pages, you MUST run the actual app to verify changes work:
+**IMPORTANT**: When modifying Streamlit pages, you MUST:
+1. Run the app with `make app`
+2. Navigate to the modified page in the browser
+3. **Visually verify ALL charts render with actual data** (not empty axes/labels)
+4. Scroll through the entire page to check all visualizations
+5. Test interactive elements (filters, checkboxes, date pickers)
 
-```bash
-make app  # Starts Streamlit on localhost:8501
+Do NOT rely only on Python syntax checks or isolated data tests - many errors only appear at runtime when the page renders.
+
+**Visual verification is mandatory** - use Playwright to take screenshots and confirm:
+- Charts display data (lines, bars, points), not just axes and labels
+- Legends show and data is color-coded correctly
+- All sections of the page render without errors
+
+**Common Altair issues that cause empty charts**:
+- Complex tooltip configurations with format strings (e.g., `format="$.2f"`, `format=".1f%"`)
+- Using `scale=alt.Scale(domain=[...])` with incompatible data
+- Combining charts with `+` operator when data structures differ
+- DataFrame column types not serializing correctly (Int64, dbdate)
+
+**Fix for empty Altair charts**: Simplify the chart encoding first, then add complexity back incrementally:
+```python
+# Start simple - verify this works
+chart = alt.Chart(df).mark_bar().encode(x="col1:Q", y="col2:N")
+
+# Then add tooltips, colors, etc. one at a time
 ```
-
-Then navigate to the modified page in the browser. Do NOT rely only on Python syntax checks or isolated data tests - many errors (especially Altair chart errors) only appear at runtime when the page renders.
-
-**Common issues that only appear at runtime**:
-- Altair chart encoding errors (e.g., nested `alt.condition()` not supported in v6)
-- BigQuery `dbdate` type not compatible with pandas operations
-- Nullable `Int64` columns causing issues with Altair conditions
-- Streamlit widget state errors
 
 ### Automated Visual Verification with Playwright
 
@@ -258,12 +272,18 @@ Then use the Read tool to view `/tmp/screenshot.png` and verify visual changes.
 
 ### Adding a New Streamlit Page
 
+**IMPORTANT**: This app uses explicit page registration in `app.py`, NOT auto-discovery from the `pages/` folder. You must register new pages or they won't appear in the sidebar.
+
 1. Create `pages/N_PageName.py` (N = order number)
-2. Add data loader function to `app_data.py` with `@st.cache_data(ttl=300)`
-3. Add tests to `tests/test_streamlit_pages.py` that exercise the chart code
-4. Run `make test` to verify charts render without Altair errors
-5. Run `make app` and navigate to the new page to verify it loads without errors
-6. Test all interactive elements (filters, charts, tables)
+2. **Register the page in `app.py`**:
+   - Add to `PUBLIC_PAGES` list for public data pages
+   - Add to `PRIVATE_PAGES` list (inside the `else` block) for work/private pages
+   - Use format: `st.Page("pages/N_PageName.py", title="Page Name", icon=":material/icon_name:")`
+3. Add data loader function to `data.py` with `@st.cache_data(ttl=300)`
+4. Add tests to `tests/test_streamlit_pages.py` that exercise the chart code
+5. Run `make test` to verify charts render without Altair errors
+6. Run `make app` and navigate to the new page to verify it loads without errors
+7. Test all interactive elements (filters, charts, tables)
 
 ## Cloudflare Workers AI
 

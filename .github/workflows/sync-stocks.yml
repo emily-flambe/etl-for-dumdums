@@ -1,19 +1,19 @@
-name: Oura Pipeline
+name: Stock Prices Pipeline
 
 on:
   schedule:
-    # Run daily at 5 AM UTC (midnight EST)
-    - cron: '0 5 * * *'
+    # Run daily at 10 PM UTC (after market close, 5 PM EST)
+    - cron: '0 22 * * 1-5'
   workflow_dispatch:
     inputs:
       full_sync:
-        description: 'Full sync (365 days, not just recent 7 days)'
+        description: 'Full sync (5 years of history, not just 30 days)'
         type: boolean
         default: false
 
 jobs:
   sync:
-    name: Sync Oura
+    name: Sync Stock Prices
     runs-on: ubuntu-latest
 
     steps:
@@ -29,20 +29,19 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Run Oura sync
+      - name: Run stock sync
         env:
-          OURA_API_TOKEN: ${{ secrets.OURA_API_TOKEN }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
         run: |
           if [ "${{ inputs.full_sync }}" = "true" ]; then
-            uv run python scripts/sync_oura.py --full
+            uv run python scripts/sync_stocks.py --full
           else
-            uv run python scripts/sync_oura.py
+            uv run python scripts/sync_stocks.py
           fi
 
   dbt:
-    name: dbt Oura Models
+    name: dbt Stock Models
     runs-on: ubuntu-latest
     needs: sync
 
@@ -67,9 +66,9 @@ jobs:
         working-directory: dbt
         run: uv run dbt deps --profiles-dir .
 
-      - name: Run dbt build for Oura
+      - name: Run dbt build for Stocks
         working-directory: dbt
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCP_SA_KEY_FILE: /tmp/gcp-key.json
-        run: uv run dbt build --profiles-dir . --select tag:oura
+        run: uv run dbt build --profiles-dir . --select tag:stocks

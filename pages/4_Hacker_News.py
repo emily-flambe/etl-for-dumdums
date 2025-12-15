@@ -39,20 +39,19 @@ weekly_stats["week"] = pd.to_datetime(weekly_stats["week"])
 domain_stats["week"] = pd.to_datetime(domain_stats["week"])
 keyword_trends["week"] = pd.to_datetime(keyword_trends["week"])
 
-# Sidebar filters
-st.sidebar.header("Filters")
-
-# Date range filter
+# Filter options
 min_week = weekly_stats["week"].min()
 max_week = weekly_stats["week"].max()
-# Default to last 2 years
 default_start = max(min_week, max_week - timedelta(days=730))
-date_range = st.sidebar.date_input(
-    "Date range",
-    value=(default_start, max_week),
-    min_value=min_week,
-    max_value=max_week,
-)
+
+# Filters section
+with st.expander("Filters", expanded=True):
+    date_range = st.date_input(
+        "Date range",
+        value=(default_start, max_week),
+        min_value=min_week,
+        max_value=max_week,
+    )
 
 # Apply date filter to all dataframes
 if len(date_range) == 2:

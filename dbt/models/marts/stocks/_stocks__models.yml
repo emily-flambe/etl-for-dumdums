@@ -1,0 +1,189 @@
+version: 2
+
+models:
+  - name: fct_stock_prices
+    description: |
+      Daily stock prices with technical indicators and derived metrics.
+      One row per ticker per trading day, including moving averages,
+      52-week highs/lows, and volume trends.
+    config:
+      schema: stocks
+      tags: ['stocks']
+    columns:
+      - name: price_id
+        description: Unique identifier (ticker_date)
+        tests:
+          - unique
+          - not_null
+      - name: ticker
+        description: Stock ticker symbol
+      - name: sector
+        description: Industry sector
+      - name: trade_date
+        description: Trading date
+      - name: open_price
+        description: Opening price
+      - name: high_price
+        description: Day's high
+      - name: low_price
+        description: Day's low
+      - name: close_price
+        description: Closing price
+      - name: adj_close_price
+        description: Adjusted closing price
+      - name: volume
+        description: Trading volume
+      - name: daily_range
+        description: High minus low price
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              config:
+                where: "daily_range is not null"
+      - name: daily_change
+        description: Close minus open price
+      - name: daily_change_pct
+        description: Percent change from open to close
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: -100
+              max_value: 100
+              inclusive: true
+              config:
+                where: "daily_change_pct is not null"
+      - name: close_change_pct
+        description: Percent change from previous close
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: -100
+              max_value: 100
+              inclusive: true
+              config:
+                where: "close_change_pct is not null"
+      - name: close_7d_ma
+        description: 7-day moving average of close price
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
+              config:
+                where: "close_7d_ma is not null"
+      - name: close_30d_ma
+        description: 30-day moving average of close price
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
+              config:
+                where: "close_30d_ma is not null"
+      - name: volume_7d_avg
+        description: 7-day average volume
+      - name: high_52w
+        description: Rolling 52-week high
+      - name: low_52w
+        description: Rolling 52-week low
+      - name: position_in_52w_range
+        description: Position in 52-week range (0-100)
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "position_in_52w_range is not null"
+      - name: ma_trend
+        description: Whether 7-day MA is above or below 30-day MA
+        tests:
+          - accepted_values:
+              values: ['above_30d_ma', 'below_30d_ma', 'at_30d_ma']
+              config:
+                where: "ma_trend is not null"
+      - name: volume_trend
+        description: Volume relative to 7-day average (high/normal/low)
+        tests:
+          - accepted_values:
+              values: ['high_volume', 'normal_volume', 'low_volume']
+              config:
+                where: "volume_trend is not null"
+      - name: recency_rank
+        description: Rank by recency per ticker (1 = most recent)
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 1"
+
+  - name: fct_sector_performance
+    description: |
+      Sector-level performance metrics aggregated from individual stock prices.
+      One row per sector showing aggregate metrics like average daily change,
+      number of gainers/losers, and best/worst performers.
+    config:
+      schema: stocks
+      tags: ['stocks']
+    columns:
+      - name: sector
+        description: Industry sector name
+        tests:
+          - unique
+          - not_null
+          - accepted_values:
+              values: ['Technology', 'Healthcare', 'Energy', 'Industrial', 'Consumer Retail']
+      - name: trade_date
+        description: Trading date for the metrics
+      - name: ticker_count
+        description: Number of tickers in the sector
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
+      - name: avg_daily_change_pct
+        description: Average percent change across all tickers in sector
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: -100
+              max_value: 100
+              inclusive: true
+              config:
+                where: "avg_daily_change_pct is not null"
+      - name: avg_52w_position
+        description: Average position in 52-week range
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "avg_52w_position is not null"
+      - name: gainers
+        description: Count of stocks with positive daily change
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      - name: losers
+        description: Count of stocks with negative daily change
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      - name: unchanged
+        description: Count of stocks with zero daily change
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              config:
+                where: "unchanged is not null"
+      - name: sector_sentiment
+        description: Overall sector sentiment (bullish/bearish/neutral)
+        tests:
+          - accepted_values:
+              values: ['bullish', 'bearish', 'neutral']
+              config:
+                where: "sector_sentiment is not null"
+      - name: pct_above_30d_ma
+        description: Percentage of stocks trading above 30-day MA
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "pct_above_30d_ma is not null"
+      - name: best_performer_ticker
+        description: Ticker symbol of best performing stock
+      - name: worst_performer_ticker
+        description: Ticker symbol of worst performing stock

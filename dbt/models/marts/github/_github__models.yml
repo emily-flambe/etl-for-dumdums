@@ -22,6 +22,34 @@ models:
         description: Hours from PR open to merge
       - name: time_to_first_review_hours
         description: Hours from PR open to first review
+      - name: additions
+        description: Lines added
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              config:
+                where: "additions is not null"
+      - name: deletions
+        description: Lines deleted
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              config:
+                where: "deletions is not null"
+      - name: review_count
+        description: Total number of reviews
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              config:
+                where: "review_count is not null"
+      - name: approval_count
+        description: Number of approvals
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "<= review_count"
+              config:
+                where: "approval_count is not null and review_count is not null"
 
   - name: fct_reviewer_activity
     description: |

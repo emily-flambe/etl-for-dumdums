@@ -16,9 +16,58 @@ models:
           - not_null
       - name: sleep_score
         description: Oura sleep score (0-100)
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "sleep_score is not null"
       - name: readiness_score
         description: Oura readiness score (0-100)
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "readiness_score is not null"
       - name: activity_score
         description: Oura activity score (0-100)
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "activity_score is not null"
       - name: combined_wellness_score
         description: Average of available scores
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "combined_wellness_score is not null"
+      - name: sleep_category
+        description: Sleep quality category
+        tests:
+          - accepted_values:
+              values: ['excellent', 'good', 'fair', 'poor']
+              config:
+                where: "sleep_category is not null"
+      - name: readiness_category
+        description: Readiness category
+        tests:
+          - accepted_values:
+              values: ['optimal', 'good', 'fair', 'poor']
+              config:
+                where: "readiness_category is not null"
+      - name: activity_category
+        description: Activity level category
+        tests:
+          - accepted_values:
+              values: ['very_active', 'active', 'moderate', 'sedentary']
+              config:
+                where: "activity_category is not null"

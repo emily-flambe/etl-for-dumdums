@@ -55,31 +55,31 @@ if df.empty:
 # Convert date column to proper datetime for Altair compatibility
 df["date"] = pd.to_datetime(df["date"])
 
-# Sidebar filters
-st.sidebar.header("Filters")
-
-# Keyword filter
+# Filter options
 keywords = sorted(df["keyword"].unique())
-selected_keywords = st.sidebar.multiselect(
-    "Keywords",
-    keywords,
-    default=keywords[:5] if len(keywords) > 5 else keywords,
-)
-
-# Date range filter
 min_date = df["date"].min()
 max_date = df["date"].max()
 default_start = max(min_date, max_date - timedelta(days=90))
-date_range = st.sidebar.date_input(
-    "Date range",
-    value=(default_start, max_date),
-    min_value=min_date,
-    max_value=max_date,
-)
-
-# Geo filter
 geos = sorted(df["geo"].unique())
-selected_geo = st.sidebar.selectbox("Region", geos, index=0)
+
+# Filters section
+with st.expander("Filters", expanded=True):
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        selected_keywords = st.multiselect(
+            "Keywords",
+            keywords,
+            default=keywords[:5] if len(keywords) > 5 else keywords,
+        )
+    with col2:
+        date_range = st.date_input(
+            "Date range",
+            value=(default_start, max_date),
+            min_value=min_date,
+            max_value=max_date,
+        )
+    with col3:
+        selected_geo = st.selectbox("Region", geos, index=0)
 
 # Apply filters
 filtered = df.copy()

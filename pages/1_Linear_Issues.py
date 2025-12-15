@@ -15,40 +15,34 @@ st.title("Linear Issues")
 # Load data
 df = load_issues()
 
-# Sidebar filters
-st.sidebar.header("Filters")
-
-# Date range filter (at top)
-st.sidebar.subheader("Date Range")
+# Filter options
 min_date = df["created_at"].min().date()
 max_date = df["created_at"].max().date()
-date_range = st.sidebar.date_input(
-    "Created between",
-    value=(min_date, max_date),
-    min_value=min_date,
-    max_value=max_date,
-)
-
 states = sorted(df["state"].dropna().unique().tolist())
-selected_states = st.sidebar.pills("State", states, selection_mode="multi")
-
 assignees = ["Unassigned"] + sorted(df["assignee_name"].dropna().unique().tolist())
-selected_assignees = st.sidebar.pills("Assignee", assignees, selection_mode="multi", default=assignees)
-
-# Sort cycles by start date (oldest first)
 cycle_df = df[["cycle_name", "cycle_starts_at"]].dropna().drop_duplicates()
 cycle_df = cycle_df.sort_values("cycle_starts_at", ascending=True)
 cycles = cycle_df["cycle_name"].tolist()
-# Default to cycles that have already started
 started_cycles = cycle_df[cycle_df["cycle_starts_at"].dt.date <= date.today()]["cycle_name"].tolist()
-selected_cycles = st.sidebar.pills("Cycle", cycles, selection_mode="multi", default=started_cycles)
-
 projects = ["All"] + sorted(df["project_name"].dropna().unique().tolist())
-selected_project = st.sidebar.selectbox("Project", projects)
-
-# Issue type filter (parent/child/standalone)
 issue_types = ["Parent", "Child", "Standalone"]
-selected_issue_types = st.sidebar.pills("Issue Type", issue_types, selection_mode="multi")
+
+# Filters section
+with st.expander("Filters", expanded=True):
+    col1, col2 = st.columns(2)
+    with col1:
+        date_range = st.date_input(
+            "Created between",
+            value=(min_date, max_date),
+            min_value=min_date,
+            max_value=max_date,
+        )
+        selected_states = st.pills("State", states, selection_mode="multi")
+        selected_assignees = st.pills("Assignee", assignees, selection_mode="multi", default=assignees)
+    with col2:
+        selected_project = st.selectbox("Project", projects)
+        selected_cycles = st.pills("Cycle", cycles, selection_mode="multi", default=started_cycles)
+        selected_issue_types = st.pills("Issue Type", issue_types, selection_mode="multi")
 
 # Apply filters
 filtered = df.copy()

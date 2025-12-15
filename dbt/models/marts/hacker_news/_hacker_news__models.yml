@@ -14,6 +14,9 @@ models:
           - not_null
       - name: story_count
         description: Number of stories posted
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
       - name: total_score
         description: Sum of all story scores
       - name: avg_score
@@ -41,6 +44,9 @@ models:
           - not_null
       - name: story_count
         description: Number of stories from this domain
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 3"
       - name: total_score
         description: Sum of scores for stories from this domain
       - name: avg_score
@@ -60,8 +66,13 @@ models:
         description: Technology keyword tracked
         tests:
           - not_null
+          - accepted_values:
+              values: ['ai', 'ml', 'llm', 'gpt', 'chatgpt', 'openai', 'anthropic', 'claude', 'gemini', 'rust', 'go', 'python', 'javascript', 'typescript', 'react', 'vue', 'svelte', 'kubernetes', 'docker', 'aws', 'azure', 'gcp', 'crypto', 'bitcoin', 'ethereum', 'blockchain', 'web3']
       - name: mention_count
         description: Number of stories mentioning this keyword
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
       - name: total_score
         description: Sum of scores for stories mentioning this keyword
       - name: avg_score
@@ -79,22 +90,54 @@ models:
           - not_null
       - name: day
         description: Day of aggregation
+        tests:
+          - not_null
       - name: comment_count
         description: Number of comments analyzed
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
       - name: story_count
         description: Number of distinct stories
       - name: avg_sentiment
         description: Average sentiment score (-1 to 1)
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: -1
+              max_value: 1
+              inclusive: true
+              config:
+                where: "avg_sentiment is not null"
       - name: sentiment_stddev
         description: Standard deviation of sentiment scores
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              config:
+                where: "sentiment_stddev is not null"
       - name: avg_magnitude
         description: Average sentiment magnitude (strength)
       - name: positive_pct
         description: Percentage of comments with positive sentiment
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
       - name: negative_pct
         description: Percentage of comments with negative sentiment
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
       - name: neutral_pct
         description: Percentage of comments with neutral sentiment
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
       - name: min_sentiment
         description: Minimum sentiment score for the day
       - name: max_sentiment

@@ -32,6 +32,7 @@ PUBLIC_PAGES = [
     st.Page("pages/7_FDA_Food_Recalls.py", title="FDA Food Recalls", icon=":material/warning:"),
     st.Page("pages/8_Iowa_Liquor_Sales.py", title="Iowa Liquor Sales", icon=":material/liquor:"),
     st.Page("pages/9_FDA_Food_Events.py", title="FDA Food Events", icon=":material/restaurant:"),
+    st.Page("pages/10_Stock_Prices.py", title="Stock Prices", icon=":material/candlestick_chart:"),
 ]
 
 # Build navigation based on deployment mode

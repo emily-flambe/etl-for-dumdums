@@ -30,8 +30,23 @@ models:
           - not_null
       - name: pr_number
         description: PR number within repo (e.g., #123)
+      - name: state
+        description: PR state (open or closed)
+        tests:
+          - accepted_values:
+              values: ['open', 'closed']
       - name: author_id
         description: FK to stg_github__users
+        tests:
+          - relationships:
+              to: ref('stg_github__users')
+              field: user_id
+              config:
+                where: "author_id is not null"
+      - name: ready_for_review_at
+        description: When PR was marked ready for review
+        tests:
+          - not_null
 
   - name: stg_github__pr_reviews
     description: Staged GitHub PR reviews
@@ -44,10 +59,25 @@ models:
         tests:
           - unique
           - not_null
+      - name: review_state
+        description: Review decision
+        tests:
+          - accepted_values:
+              values: ['APPROVED', 'CHANGES_REQUESTED', 'COMMENTED', 'DISMISSED', 'PENDING']
       - name: pull_request_id
         description: FK to stg_github__pull_requests
+        tests:
+          - relationships:
+              to: ref('stg_github__pull_requests')
+              field: pull_request_id
       - name: reviewer_id
         description: FK to stg_github__users
+        tests:
+          - relationships:
+              to: ref('stg_github__users')
+              field: user_id
+              config:
+                where: "reviewer_id is not null"
 
   - name: stg_github__pr_comments
     description: Staged GitHub PR review comments
@@ -62,5 +92,15 @@ models:
           - not_null
       - name: pull_request_id
         description: FK to stg_github__pull_requests
+        tests:
+          - relationships:
+              to: ref('stg_github__pull_requests')
+              field: pull_request_id
       - name: author_id
         description: FK to stg_github__users
+        tests:
+          - relationships:
+              to: ref('stg_github__users')
+              field: user_id
+              config:
+                where: "author_id is not null"

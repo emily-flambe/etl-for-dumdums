@@ -1,0 +1,16 @@
+version: 2
+
+sources:
+  - name: stocks
+    description: Raw stock price data from Yahoo Finance via yfinance
+    database: "{{ env_var('GCP_PROJECT_ID') }}"
+    schema: stocks
+    tables:
+      - name: raw_prices
+        description: Daily OHLCV stock prices (raw ETL data)
+        columns:
+          - name: id
+            description: Unique price record ID (ticker_date)
+            tests:
+              - unique
+              - not_null

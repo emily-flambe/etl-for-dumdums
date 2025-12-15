@@ -46,29 +46,11 @@ if recalls_with_topics.empty:
 # Convert dates to datetime for filtering
 recalls_with_topics["recall_initiation_date"] = pd.to_datetime(recalls_with_topics["recall_initiation_date"])
 
-# Sidebar filters
-st.sidebar.header("Filters")
-
-# Date range filter
+# Filter options
 min_date = recalls_with_topics["recall_initiation_date"].min()
 max_date = recalls_with_topics["recall_initiation_date"].max()
-
-date_range = st.sidebar.date_input(
-    "Date range",
-    value=(min_date, max_date),
-    min_value=min_date,
-    max_value=max_date,
-)
-
-# Classification filter
 classifications = ["All"] + sorted(recalls_with_topics["classification"].dropna().unique().tolist())
-selected_classification = st.sidebar.selectbox(
-    "Classification",
-    options=classifications,
-    help="Class I = Most serious (dangerous), Class II = Moderate, Class III = Minor"
-)
 
-# State filter
 state_names_map = {
     'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
     'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
@@ -84,22 +66,36 @@ state_names_map = {
     'PR': 'Puerto Rico'
 }
 
-# Get states that have data
 states_with_data = sorted(recalls_with_topics["state_code"].dropna().unique().tolist())
 state_options = ["All States"] + [f"{code} - {state_names_map.get(code, code)}" for code in states_with_data]
 
-# Initialize session state for map click
 if "selected_state" not in st.session_state:
     st.session_state.selected_state = "All States"
 
-selected_state_display = st.sidebar.selectbox(
-    "State",
-    options=state_options,
-    index=state_options.index(st.session_state.selected_state) if st.session_state.selected_state in state_options else 0,
-    key="state_filter"
-)
+# Filters section
+with st.expander("Filters", expanded=True):
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        date_range = st.date_input(
+            "Date range",
+            value=(min_date, max_date),
+            min_value=min_date,
+            max_value=max_date,
+        )
+    with col2:
+        selected_classification = st.selectbox(
+            "Classification",
+            options=classifications,
+            help="Class I = Most serious (dangerous), Class II = Moderate, Class III = Minor"
+        )
+    with col3:
+        selected_state_display = st.selectbox(
+            "State",
+            options=state_options,
+            index=state_options.index(st.session_state.selected_state) if st.session_state.selected_state in state_options else 0,
+            key="state_filter"
+        )
 
-# Update session state
 st.session_state.selected_state = selected_state_display
 
 # Extract state code from selection
@@ -222,7 +218,7 @@ filtered_by_state["state_name"] = filtered_by_state["state_code"].map(state_name
 unmapped = filtered_by_state[filtered_by_state["id"].isna()]
 if not unmapped.empty:
     unmapped_codes = unmapped["state_code"].unique().tolist()
-    st.sidebar.warning(f"Excluding {len(unmapped)} recalls from unmapped regions: {unmapped_codes}")
+    st.warning(f"Excluding {len(unmapped)} recalls from unmapped regions: {unmapped_codes}")
     filtered_by_state = filtered_by_state.dropna(subset=["id"])
 
 # Metrics row

@@ -7,11 +7,11 @@ endif
 # Optional flags
 FULL ?=
 
-.PHONY: help run run-linear run-github run-oura run-hacker-news run-trends run-fda-food-recalls run-fda-food-events run-iowa-liquor \
-        sync sync-linear sync-github sync-oura sync-hacker-news sync-trends sync-fda-food-recalls sync-fda-food-events sync-iowa-liquor \
-        dbt dbt-linear dbt-github dbt-oura dbt-hacker-news dbt-trends dbt-fda-food dbt-iowa-liquor \
-        dbt-run dbt-run-linear dbt-run-github dbt-run-oura dbt-run-hacker-news dbt-run-trends dbt-run-fda-food dbt-run-iowa-liquor \
-        dbt-test dbt-test-linear dbt-test-github dbt-test-oura dbt-test-hacker-news dbt-test-trends dbt-test-fda-food dbt-test-iowa-liquor \
+.PHONY: help run run-linear run-github run-oura run-hacker-news run-trends run-fda-food-recalls run-fda-food-events run-iowa-liquor run-stocks \
+        sync sync-linear sync-github sync-oura sync-hacker-news sync-trends sync-fda-food-recalls sync-fda-food-events sync-iowa-liquor sync-stocks \
+        dbt dbt-linear dbt-github dbt-oura dbt-hacker-news dbt-trends dbt-fda-food dbt-iowa-liquor dbt-stocks \
+        dbt-run dbt-run-linear dbt-run-github dbt-run-oura dbt-run-hacker-news dbt-run-trends dbt-run-fda-food dbt-run-iowa-liquor dbt-run-stocks \
+        dbt-test dbt-test-linear dbt-test-github dbt-test-oura dbt-test-hacker-news dbt-test-trends dbt-test-fda-food dbt-test-iowa-liquor dbt-test-stocks \
         dbt-compile dbt-debug dbt-deps dbt-clean dbt-docs dbt-docs-serve dbt-seed dbt-snapshot \
         app app-public deploy test
 
@@ -27,6 +27,7 @@ help:
 	@echo "  make run-fda-food-recalls - FDA Food Recalls pipeline"
 	@echo "  make run-fda-food-events  - FDA Food Adverse Events pipeline"
 	@echo "  make run-iowa-liquor      - Iowa Liquor Sales pipeline"
+	@echo "  make run-stocks           - Stock Prices pipeline"
 	@echo ""
 	@echo "Syncs (add FULL=1 for full sync instead of incremental):"
 	@echo "  make sync                 - All sources"
@@ -38,11 +39,13 @@ help:
 	@echo "  make sync-fda-food-recalls - FDA Food Recalls (from 2025-01-01)"
 	@echo "  make sync-fda-food-events  - FDA Food Adverse Events (90 day lookback)"
 	@echo "  make sync-iowa-liquor     - Iowa Liquor Sales (90 day lookback)"
+	@echo "  make sync-stocks          - Stock Prices (30 day lookback)"
 	@echo "  make sync-linear FULL=1   - Linear full sync"
 	@echo "  make sync-hacker-news FULL=1 - Hacker News full sync (5 years)"
 	@echo "  make sync-fda-food-recalls FULL=1 - FDA Food Recalls full sync (from 2012)"
 	@echo "  make sync-fda-food-events FULL=1  - FDA Food Adverse Events full sync (10 years)"
 	@echo "  make sync-iowa-liquor FULL=1 - Iowa Liquor Sales full sync (13 years)"
+	@echo "  make sync-stocks FULL=1   - Stock Prices full sync (5 years)"
 	@echo ""
 	@echo "dbt (append -linear, -github, or -oura to filter by source):"
 	@echo "  make dbt                  - Build + test all models"
@@ -92,7 +95,10 @@ sync-fda-food-events:
 sync-iowa-liquor:
 	uv run python scripts/sync_iowa_liquor.py $(if $(FULL),--full,)
 
-sync: sync-linear sync-github sync-oura sync-hacker-news sync-trends sync-fda-food-recalls sync-fda-food-events sync-iowa-liquor
+sync-stocks:
+	uv run python scripts/sync_stocks.py $(if $(FULL),--full,)
+
+sync: sync-linear sync-github sync-oura sync-hacker-news sync-trends sync-fda-food-recalls sync-fda-food-events sync-iowa-liquor sync-stocks
 
 # ---------- dbt ----------
 
@@ -120,6 +126,9 @@ dbt-fda-food:
 dbt-iowa-liquor:
 	cd dbt && uv run dbt build --profiles-dir . --select tag:iowa_liquor
 
+dbt-stocks:
+	cd dbt && uv run dbt build --profiles-dir . --select tag:stocks
+
 dbt-run:
 	cd dbt && uv run dbt run --profiles-dir .
 
@@ -144,6 +153,9 @@ dbt-run-fda-food:
 dbt-run-iowa-liquor:
 	cd dbt && uv run dbt run --profiles-dir . --select tag:iowa_liquor
 
+dbt-run-stocks:
+	cd dbt && uv run dbt run --profiles-dir . --select tag:stocks
+
 dbt-test:
 	cd dbt && uv run dbt test --profiles-dir .
 
@@ -167,6 +179,9 @@ dbt-test-fda-food:
 
 dbt-test-iowa-liquor:
 	cd dbt && uv run dbt test --profiles-dir . --select tag:iowa_liquor
+
+dbt-test-stocks:
+	cd dbt && uv run dbt test --profiles-dir . --select tag:stocks
 
 dbt-compile:
 	cd dbt && uv run dbt compile --profiles-dir .
@@ -211,6 +226,8 @@ run-fda-food-recalls: sync-fda-food-recalls dbt-fda-food
 run-fda-food-events: sync-fda-food-events dbt-fda-food
 
 run-iowa-liquor: sync-iowa-liquor dbt-iowa-liquor
+
+run-stocks: sync-stocks dbt-stocks
 
 # ---------- Streamlit app ----------
 

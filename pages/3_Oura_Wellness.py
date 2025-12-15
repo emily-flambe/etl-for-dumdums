@@ -81,31 +81,31 @@ for col in int_cols:
     if col in df.columns:
         df[col] = df[col].astype(float)
 
-# Sidebar filters
-st.sidebar.header("Filters")
-
-# Date range filter
+# Filter options
 min_date = df["day"].min()
 max_date = df["day"].max()
-# Default to last 30 days
 default_start = max(min_date, max_date - timedelta(days=30))
-date_range = st.sidebar.date_input(
-    "Date range",
-    value=(default_start, max_date),
-    min_value=min_date,
-    max_value=max_date,
-)
-
-# Category filters
 sleep_categories = ["excellent", "good", "fair", "poor"]
-selected_sleep_cats = st.sidebar.pills(
-    "Sleep Category", sleep_categories, selection_mode="multi"
-)
-
 readiness_categories = ["optimal", "good", "fair", "poor"]
-selected_readiness_cats = st.sidebar.pills(
-    "Readiness Category", readiness_categories, selection_mode="multi"
-)
+
+# Filters section
+with st.expander("Filters", expanded=True):
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        date_range = st.date_input(
+            "Date range",
+            value=(default_start, max_date),
+            min_value=min_date,
+            max_value=max_date,
+        )
+    with col2:
+        selected_sleep_cats = st.pills(
+            "Sleep Category", sleep_categories, selection_mode="multi"
+        )
+    with col3:
+        selected_readiness_cats = st.pills(
+            "Readiness Category", readiness_categories, selection_mode="multi"
+        )
 
 # Apply filters
 filtered = df.copy()

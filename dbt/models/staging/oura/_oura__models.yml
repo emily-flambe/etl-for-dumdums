@@ -14,22 +14,80 @@ models:
           - not_null
       - name: day
         description: Date of sleep measurement
+        tests:
+          - not_null
       - name: sleep_score
         description: Overall sleep score (0-100)
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "sleep_score is not null"
       - name: contributor_deep_sleep
         description: Deep sleep contributor score
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "contributor_deep_sleep is not null"
       - name: contributor_efficiency
         description: Sleep efficiency contributor score
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "contributor_efficiency is not null"
       - name: contributor_latency
         description: Latency contributor score
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "contributor_latency is not null"
       - name: contributor_rem_sleep
         description: REM sleep contributor score
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "contributor_rem_sleep is not null"
       - name: contributor_restfulness
         description: Restfulness contributor score
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "contributor_restfulness is not null"
       - name: contributor_timing
         description: Sleep timing contributor score
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "contributor_timing is not null"
       - name: contributor_total_sleep
         description: Total sleep contributor score
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "contributor_total_sleep is not null"
 
   - name: stg_oura__daily_readiness
     description: Staged daily readiness scores with cleaned column names
@@ -44,10 +102,26 @@ models:
           - not_null
       - name: day
         description: Date of readiness measurement
+        tests:
+          - not_null
       - name: score
         description: Overall readiness score (0-100)
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "score is not null"
       - name: temperature_deviation
         description: Body temperature deviation from baseline
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: -3
+              max_value: 3
+              inclusive: true
+              config:
+                where: "temperature_deviation is not null"
 
   - name: stg_oura__daily_activity
     description: Staged daily activity metrics with cleaned column names and times in minutes
@@ -62,10 +136,35 @@ models:
           - not_null
       - name: day
         description: Date of activity measurement
+        tests:
+          - not_null
       - name: score
         description: Overall activity score (0-100)
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+              config:
+                where: "score is not null"
       - name: steps
         description: Daily step count
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100000
+              inclusive: true
+              config:
+                where: "steps is not null"
+      - name: active_calories
+        description: Calories burned from activity
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "<= total_calories"
+              config:
+                where: "active_calories is not null and total_calories is not null"
+      - name: total_calories
+        description: Total calories burned
       - name: high_activity_time_minutes
         description: High intensity activity time in minutes
       - name: medium_activity_time_minutes
