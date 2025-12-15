@@ -31,14 +31,17 @@ def check_password():
 
     st.title("Oura Wellness")
     st.info("This page contains personal health data and requires a password to access.")
-    password = st.text_input("Enter password:", type="password")
 
-    if password:
-        if password == OURA_PAGE_PASSWORD:
-            st.session_state.oura_authenticated = True
-            st.rerun()
-        else:
-            st.error("Incorrect password")
+    with st.form("password_form"):
+        password = st.text_input("Enter password:", type="password", key="password_input")
+        submit = st.form_submit_button("Submit")
+
+        if submit:
+            if password.strip() == OURA_PAGE_PASSWORD:
+                st.session_state.oura_authenticated = True
+                st.rerun()
+            else:
+                st.error("Incorrect password")
 
     return False
 
