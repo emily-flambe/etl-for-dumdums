@@ -37,7 +37,7 @@ def check_password():
         submit = st.form_submit_button("Submit")
 
         if submit:
-            if password.strip() == OURA_PAGE_PASSWORD:
+            if password.strip() == OURA_PAGE_PASSWORD.strip():
                 st.session_state.oura_authenticated = True
                 st.rerun()
             else:
