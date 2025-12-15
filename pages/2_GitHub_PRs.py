@@ -14,6 +14,22 @@ from data import load_pull_requests, load_review_matrix, load_reviewer_activity
 
 st.title("GitHub Pull Requests")
 
+st.markdown("""
+Team PR activity, review patterns, and cycle time metrics for configured GitHub repositories.
+
+**About the Data:**
+- **Source:** [GitHub REST API](https://docs.github.com/en/rest) (pull requests, reviews, comments)
+- **Timing:** All "time to X" metrics measure from when the PR was marked **ready for review**,
+  not when it was created. This avoids penalizing PRs that were in draft state.
+- **Updates:** Daily sync fetches PRs updated in the last 30 days
+
+**Key Metrics:**
+- **Cycle Time:** Hours from ready-for-review to merge
+- **Time to First Review:** Hours until first approval
+- **Time to First Response:** Hours until first comment or approval
+- **Review Matrix:** Shows how often each teammate reviews others' PRs
+""")
+
 # Load data
 try:
     prs = load_pull_requests()
@@ -29,27 +45,27 @@ prs["merged_at"] = pd.to_datetime(prs["merged_at"])
 prs["updated_at"] = pd.to_datetime(prs["updated_at"])
 reviewer_activity["pr_created_at"] = pd.to_datetime(reviewer_activity["pr_created_at"])
 
-# Sidebar filters
-st.sidebar.header("Filters")
-
-# Date range filter (default: last 90 days)
+# Filter options
 min_date = prs["created_at"].min()
 max_date = prs["created_at"].max()
 default_start = max(min_date, max_date - timedelta(days=90))
-date_range = st.sidebar.date_input(
-    "Date range",
-    value=(default_start, max_date),
-    min_value=min_date,
-    max_value=max_date,
-)
-
-# Repo filter
 repos = sorted(prs["repo"].dropna().unique().tolist())
-selected_repos = st.sidebar.multiselect("Repos", repos, default=repos)
-
-# Author filter
 authors = sorted(prs["author_username"].dropna().unique().tolist())
-selected_authors = st.sidebar.multiselect("Authors", authors, default=authors)
+
+# Filters section
+with st.expander("Filters", expanded=True):
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        date_range = st.date_input(
+            "Date range",
+            value=(default_start, max_date),
+            min_value=min_date,
+            max_value=max_date,
+        )
+    with col2:
+        selected_repos = st.multiselect("Repos", repos, default=repos)
+    with col3:
+        selected_authors = st.multiselect("Authors", authors, default=authors)
 
 
 # Apply filters to PRs
