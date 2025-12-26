@@ -1,5 +1,6 @@
 with source as (
     select * from {{ source('hacker_news', 'raw_stories') }}
+    where title is not null
 ),
 
 staged as (
