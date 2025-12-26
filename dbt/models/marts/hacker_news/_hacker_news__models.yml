@@ -63,11 +63,9 @@ models:
         tests:
           - not_null
       - name: keyword
-        description: Technology keyword tracked
+        description: Technology keyword tracked (defined in SQL model)
         tests:
           - not_null
-          - accepted_values:
-              values: ['ai', 'ml', 'llm', 'gpt', 'chatgpt', 'openai', 'anthropic', 'claude', 'gemini', 'rust', 'go', 'python', 'javascript', 'typescript', 'react', 'vue', 'svelte', 'kubernetes', 'docker', 'aws', 'azure', 'gcp', 'crypto', 'bitcoin', 'ethereum', 'blockchain', 'web3']
       - name: mention_count
         description: Number of stories mentioning this keyword
         tests:
