@@ -80,6 +80,8 @@ class HNStoriesSource(Source):
           AND `timestamp` >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @lookback_days DAY)
           AND deleted IS NOT TRUE
           AND dead IS NOT TRUE
+          AND title IS NOT NULL
+          AND title != ''
         ORDER BY `timestamp` DESC
         """
 
@@ -291,7 +293,7 @@ class HNCommentsSource(Source):
             FROM stories_ranked
             WHERE rank_in_day <= @top_stories_per_day
         )
-        SELECT
+        SELECT DISTINCT
             c.id,
             c.parent as parent_id,
             c.parent as story_id,

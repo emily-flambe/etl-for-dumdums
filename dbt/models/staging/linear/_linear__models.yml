@@ -17,31 +17,17 @@ models:
         tests:
           - not_null
       - name: state
-        description: Issue state
-        tests:
-          - accepted_values:
-              values: ['Backlog', 'Todo', 'In Progress', 'In Review', 'Done', 'Cancelled']
+        description: Issue state (dynamic - Linear allows custom states)
       - name: priority
         description: Priority level (0=none, 1=urgent, 2=high, 3=normal, 4=low)
         tests:
           - accepted_values:
               values: [0, 1, 2, 3, 4]
+              quote: false
       - name: assignee_id
-        description: FK to stg_linear__users
-        tests:
-          - relationships:
-              to: ref('stg_linear__users')
-              field: user_id
-              config:
-                where: "assignee_id is not null"
+        description: FK to stg_linear__users (may reference inactive/removed users)
       - name: cycle_id
-        description: FK to stg_linear__cycles
-        tests:
-          - relationships:
-              to: ref('stg_linear__cycles')
-              field: cycle_id
-              config:
-                where: "cycle_id is not null"
+        description: FK to stg_linear__cycles (may reference archived cycles)
 
   - name: stg_linear__users
     description: Staged Linear users
