@@ -77,7 +77,7 @@ One dataset per source. Raw tables prefixed with `raw_`, dbt models in same data
 |--------|----------------------|-----------------|
 | Linear | Last 7 days | All issues |
 | GitHub | Last 30 days | All PRs |
-| Oura | Last 7 days | Last 365 days |
+| Oura | Last 7 days | All historical data |
 | Hacker News (stories) | Last 30 days | Last 5 years |
 | Hacker News (comments) | Last 7 days | Last 5 years |
 
@@ -127,7 +127,7 @@ make sync-github        # GitHub only (30 day lookback)
 make sync-oura          # Oura only (7 day lookback)
 make sync-hacker-news   # Hacker News only (30 day lookback)
 make sync-linear FULL=1 # Linear full sync
-make sync-oura FULL=1   # Oura full sync (365 days)
+make sync-oura FULL=1   # Oura full sync (all history)
 make sync-hacker-news FULL=1 # Hacker News full sync (5 years)
 
 # dbt (append -linear, -github, -oura, or -hacker-news to filter)
@@ -214,9 +214,10 @@ The Streamlit app lives in `app.py` (home page) and `pages/` (sub-pages).
 **IMPORTANT**: When modifying Streamlit pages, you MUST:
 1. Run the app with `make app`
 2. Navigate to the modified page in the browser
-3. **Visually verify ALL charts render with actual data** (not empty axes/labels)
-4. Scroll through the entire page to check all visualizations
-5. Test interactive elements (filters, checkboxes, date pickers)
+3. **Take screenshots with Playwright and visually inspect them** - do not skip this step
+4. **Visually verify ALL charts render with actual data** (not empty axes/labels)
+5. Scroll through the entire page to check all visualizations
+6. Test interactive elements (filters, checkboxes, date pickers)
 
 Do NOT rely only on Python syntax checks or isolated data tests - many errors only appear at runtime when the page renders.
 
@@ -224,6 +225,9 @@ Do NOT rely only on Python syntax checks or isolated data tests - many errors on
 - Charts display data (lines, bars, points), not just axes and labels
 - Legends show and data is color-coded correctly
 - All sections of the page render without errors
+- **No overlapping elements** (bars, labels, text)
+- **Proper spacing** between chart elements
+- **Readable axis labels** (not too crowded or cut off)
 
 **Common Altair issues that cause empty charts**:
 - Complex tooltip configurations with format strings (e.g., `format="$.2f"`, `format=".1f%"`)

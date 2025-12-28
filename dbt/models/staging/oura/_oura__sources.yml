@@ -32,3 +32,12 @@ sources:
             tests:
               - unique
               - not_null
+
+      - name: raw_sleep_sessions
+        description: Detailed sleep sessions with duration, heart rate, and HRV (raw ETL data)
+        columns:
+          - name: id
+            description: Unique sleep session ID
+            tests:
+              - unique
+              - not_null

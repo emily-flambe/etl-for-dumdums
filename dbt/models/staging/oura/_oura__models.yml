@@ -137,6 +137,7 @@ models:
       - name: day
         description: Date of activity measurement
         tests:
+          - unique
           - not_null
       - name: score
         description: Overall activity score (0-100)
@@ -175,3 +176,39 @@ models:
         description: Sedentary time in minutes
       - name: resting_time_minutes
         description: Resting time in minutes
+
+  - name: stg_oura__sleep_sessions
+    description: Staged detailed sleep sessions with duration, heart rate, and HRV
+    config:
+      schema: oura
+      tags: ['oura']
+    columns:
+      - name: sleep_session_id
+        description: Unique sleep session identifier
+        tests:
+          - unique
+          - not_null
+      - name: day
+        description: Date of sleep session
+        tests:
+          - not_null
+      - name: sleep_type
+        description: Type of sleep (long_sleep, rest, etc.)
+      - name: total_sleep_hours
+        description: Total sleep duration in hours
+      - name: time_in_bed_hours
+        description: Total time in bed in hours
+      - name: deep_sleep_hours
+        description: Deep sleep duration in hours
+      - name: rem_sleep_hours
+        description: REM sleep duration in hours
+      - name: light_sleep_hours
+        description: Light sleep duration in hours
+      - name: average_heart_rate
+        description: Average heart rate during sleep (bpm)
+      - name: lowest_heart_rate
+        description: Lowest heart rate during sleep (resting HR, bpm)
+      - name: average_hrv
+        description: Average heart rate variability during sleep (ms)
+      - name: sleep_efficiency
+        description: Sleep efficiency percentage (0-100)

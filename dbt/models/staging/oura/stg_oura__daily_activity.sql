@@ -2,6 +2,14 @@ with source as (
     select * from {{ source('oura', 'raw_daily_activity') }}
 ),
 
+-- Oura API can return multiple records per day (timezone edge cases)
+-- Keep the record with the most steps (most complete activity data)
+deduplicated as (
+    select *,
+        row_number() over (partition by day order by steps desc, id desc) as rn
+    from source
+),
+
 staged as (
     select
         id as activity_id,
@@ -22,7 +30,8 @@ staged as (
         contributor_stay_active,
         contributor_training_frequency,
         contributor_training_volume
-    from source
+    from deduplicated
+    where rn = 1
 )
 
 select * from staged

@@ -4,7 +4,7 @@ GitHub Pull Requests dashboard.
 Shows team PR activity trends, review responsiveness, and code volume metrics.
 """
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 import altair as alt
 import pandas as pd

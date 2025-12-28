@@ -4,8 +4,10 @@
 # Secrets (service account keys, etc.)
 .secrets/
 
-# dbt local files
+# dbt local files and artifacts
 dbt/.user.yml
+dbt/target/
+dbt/logs/
 
 # Python
 __pycache__/

@@ -10,6 +10,30 @@ activity as (
     select * from {{ ref('stg_oura__daily_activity') }}
 ),
 
+sleep_sessions as (
+    select * from {{ ref('stg_oura__sleep_sessions') }}
+),
+
+-- Aggregate sleep sessions per day (get metrics from primary/longest sleep)
+daily_sleep_sessions as (
+    select
+        day,
+        -- Sum up all sleep durations for the day
+        sum(total_sleep_hours) as total_sleep_hours,
+        sum(time_in_bed_hours) as time_in_bed_hours,
+        sum(deep_sleep_hours) as deep_sleep_hours,
+        sum(rem_sleep_hours) as rem_sleep_hours,
+        sum(light_sleep_hours) as light_sleep_hours,
+        -- Get heart rate metrics from the longest sleep session
+        max(case when sleep_type = 'long_sleep' then average_heart_rate end) as average_heart_rate,
+        max(case when sleep_type = 'long_sleep' then lowest_heart_rate end) as resting_heart_rate,
+        max(case when sleep_type = 'long_sleep' then average_hrv end) as average_hrv,
+        max(case when sleep_type = 'long_sleep' then sleep_efficiency end) as sleep_efficiency,
+        count(*) as sleep_session_count
+    from sleep_sessions
+    group by day
+),
+
 -- Get all unique days from any source
 all_days as (
     select distinct day from sleep
@@ -17,13 +41,15 @@ all_days as (
     select distinct day from readiness
     union distinct
     select distinct day from activity
+    union distinct
+    select distinct day from daily_sleep_sessions
 ),
 
 final as (
     select
         d.day,
 
-        -- Sleep metrics
+        -- Sleep metrics (from daily_sleep endpoint)
         s.sleep_id,
         s.sleep_score,
         s.contributor_deep_sleep as sleep_contributor_deep_sleep,
@@ -33,6 +59,18 @@ final as (
         s.contributor_restfulness as sleep_contributor_restfulness,
         s.contributor_timing as sleep_contributor_timing,
         s.contributor_total_sleep as sleep_contributor_total_sleep,
+
+        -- Sleep session metrics (from sleep endpoint - duration, heart rate, HRV)
+        ss.total_sleep_hours,
+        ss.time_in_bed_hours,
+        ss.deep_sleep_hours,
+        ss.rem_sleep_hours,
+        ss.light_sleep_hours,
+        ss.average_heart_rate,
+        ss.resting_heart_rate,
+        ss.average_hrv,
+        ss.sleep_efficiency,
+        ss.sleep_session_count,
 
         -- Readiness metrics
         r.readiness_id,
@@ -76,6 +114,14 @@ final as (
             else 'sedentary'
         end as activity_category,
 
+        -- Sleep duration category
+        case
+            when ss.total_sleep_hours >= 8 then 'optimal'
+            when ss.total_sleep_hours >= 7 then 'good'
+            when ss.total_sleep_hours >= 6 then 'fair'
+            else 'poor'
+        end as sleep_duration_category,
+
         -- Combined wellness score (average of available scores)
         round(
             (coalesce(s.sleep_score, 0) + coalesce(r.score, 0) + coalesce(a.score, 0))
@@ -90,6 +136,7 @@ final as (
 
     from all_days d
     left join sleep s on d.day = s.day
+    left join daily_sleep_sessions ss on d.day = ss.day
     left join readiness r on d.day = r.day
     left join activity a on d.day = a.day
 )

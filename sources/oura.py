@@ -100,20 +100,21 @@ class OuraSleepSource(Source):
         bigquery.SchemaField("contributor_total_sleep", "INTEGER"),
     ]
 
-    def __init__(self, lookback_days: int = 7):
+    def __init__(self, lookback_days: int | None = 7):
         self.lookback_days = lookback_days
 
     def fetch(self) -> list[dict[str, Any]]:
         end_date = datetime.now(timezone.utc).date()
-        start_date = end_date - timedelta(days=self.lookback_days)
-
-        logger.info(f"Fetching daily sleep data from {start_date} to {end_date}")
 
         url = f"{OURA_API_URL}/usercollection/daily_sleep"
-        params = {
-            "start_date": start_date.isoformat(),
-            "end_date": end_date.isoformat(),
-        }
+        params = {"end_date": end_date.isoformat()}
+
+        if self.lookback_days is not None:
+            start_date = end_date - timedelta(days=self.lookback_days)
+            params["start_date"] = start_date.isoformat()
+            logger.info(f"Fetching daily sleep data from {start_date} to {end_date}")
+        else:
+            logger.info(f"Fetching all daily sleep data up to {end_date}")
 
         return fetch_paginated_with_token(url, params)
 
@@ -130,6 +131,81 @@ class OuraSleepSource(Source):
                 "contributor_restfulness": record.get("contributors", {}).get("restfulness") if record.get("contributors") else None,
                 "contributor_timing": record.get("contributors", {}).get("timing") if record.get("contributors") else None,
                 "contributor_total_sleep": record.get("contributors", {}).get("total_sleep") if record.get("contributors") else None,
+            }
+            for record in raw_data
+        ]
+
+
+class OuraSleepSessionSource(Source):
+    """Fetches detailed sleep session data from Oura.
+
+    Uses the sleep endpoint which provides detailed per-session records
+    including duration, heart rate, HRV, and sleep stages.
+    """
+
+    dataset_id = "oura"
+    table_id = "raw_sleep_sessions"
+    primary_key = "id"
+    schema = [
+        bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("day", "DATE"),
+        bigquery.SchemaField("bedtime_start", "TIMESTAMP"),
+        bigquery.SchemaField("bedtime_end", "TIMESTAMP"),
+        bigquery.SchemaField("sleep_type", "STRING"),
+        bigquery.SchemaField("total_sleep_duration_seconds", "INTEGER"),
+        bigquery.SchemaField("time_in_bed_seconds", "INTEGER"),
+        bigquery.SchemaField("awake_time_seconds", "INTEGER"),
+        bigquery.SchemaField("light_sleep_duration_seconds", "INTEGER"),
+        bigquery.SchemaField("deep_sleep_duration_seconds", "INTEGER"),
+        bigquery.SchemaField("rem_sleep_duration_seconds", "INTEGER"),
+        bigquery.SchemaField("latency_seconds", "INTEGER"),
+        bigquery.SchemaField("efficiency", "INTEGER"),
+        bigquery.SchemaField("average_heart_rate", "FLOAT"),
+        bigquery.SchemaField("lowest_heart_rate", "INTEGER"),
+        bigquery.SchemaField("average_hrv", "INTEGER"),
+        bigquery.SchemaField("restless_periods", "INTEGER"),
+        bigquery.SchemaField("average_breath", "FLOAT"),
+    ]
+
+    def __init__(self, lookback_days: int | None = 7):
+        self.lookback_days = lookback_days
+
+    def fetch(self) -> list[dict[str, Any]]:
+        end_date = datetime.now(timezone.utc).date()
+
+        url = f"{OURA_API_URL}/usercollection/sleep"
+        params = {"end_date": end_date.isoformat()}
+
+        if self.lookback_days is not None:
+            start_date = end_date - timedelta(days=self.lookback_days)
+            params["start_date"] = start_date.isoformat()
+            logger.info(f"Fetching sleep sessions from {start_date} to {end_date}")
+        else:
+            logger.info(f"Fetching all sleep sessions up to {end_date}")
+
+        return fetch_paginated_with_token(url, params)
+
+    def transform(self, raw_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {
+                "id": record["id"],
+                "day": record.get("day"),
+                "bedtime_start": record.get("bedtime_start"),
+                "bedtime_end": record.get("bedtime_end"),
+                "sleep_type": record.get("type"),
+                "total_sleep_duration_seconds": record.get("total_sleep_duration"),
+                "time_in_bed_seconds": record.get("time_in_bed"),
+                "awake_time_seconds": record.get("awake_time"),
+                "light_sleep_duration_seconds": record.get("light_sleep_duration"),
+                "deep_sleep_duration_seconds": record.get("deep_sleep_duration"),
+                "rem_sleep_duration_seconds": record.get("rem_sleep_duration"),
+                "latency_seconds": record.get("latency"),
+                "efficiency": record.get("efficiency"),
+                "average_heart_rate": record.get("average_heart_rate"),
+                "lowest_heart_rate": record.get("lowest_heart_rate"),
+                "average_hrv": record.get("average_hrv"),
+                "restless_periods": record.get("restless_periods"),
+                "average_breath": record.get("average_breath"),
             }
             for record in raw_data
         ]
@@ -156,20 +232,21 @@ class OuraReadinessSource(Source):
         bigquery.SchemaField("contributor_sleep_balance", "INTEGER"),
     ]
 
-    def __init__(self, lookback_days: int = 7):
+    def __init__(self, lookback_days: int | None = 7):
         self.lookback_days = lookback_days
 
     def fetch(self) -> list[dict[str, Any]]:
         end_date = datetime.now(timezone.utc).date()
-        start_date = end_date - timedelta(days=self.lookback_days)
-
-        logger.info(f"Fetching readiness data from {start_date} to {end_date}")
 
         url = f"{OURA_API_URL}/usercollection/daily_readiness"
-        params = {
-            "start_date": start_date.isoformat(),
-            "end_date": end_date.isoformat(),
-        }
+        params = {"end_date": end_date.isoformat()}
+
+        if self.lookback_days is not None:
+            start_date = end_date - timedelta(days=self.lookback_days)
+            params["start_date"] = start_date.isoformat()
+            logger.info(f"Fetching readiness data from {start_date} to {end_date}")
+        else:
+            logger.info(f"Fetching all readiness data up to {end_date}")
 
         return fetch_paginated_with_token(url, params)
 
@@ -220,20 +297,21 @@ class OuraActivitySource(Source):
         bigquery.SchemaField("contributor_training_volume", "INTEGER"),
     ]
 
-    def __init__(self, lookback_days: int = 7):
+    def __init__(self, lookback_days: int | None = 7):
         self.lookback_days = lookback_days
 
     def fetch(self) -> list[dict[str, Any]]:
         end_date = datetime.now(timezone.utc).date()
-        start_date = end_date - timedelta(days=self.lookback_days)
-
-        logger.info(f"Fetching activity data from {start_date} to {end_date}")
 
         url = f"{OURA_API_URL}/usercollection/daily_activity"
-        params = {
-            "start_date": start_date.isoformat(),
-            "end_date": end_date.isoformat(),
-        }
+        params = {"end_date": end_date.isoformat()}
+
+        if self.lookback_days is not None:
+            start_date = end_date - timedelta(days=self.lookback_days)
+            params["start_date"] = start_date.isoformat()
+            logger.info(f"Fetching activity data from {start_date} to {end_date}")
+        else:
+            logger.info(f"Fetching all activity data up to {end_date}")
 
         return fetch_paginated_with_token(url, params)
 

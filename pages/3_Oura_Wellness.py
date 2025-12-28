@@ -3,7 +3,7 @@ Oura Wellness dashboard.
 """
 
 import os
-from datetime import date, timedelta
+from datetime import timedelta
 
 import altair as alt
 import pandas as pd
@@ -11,6 +11,66 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from data import load_oura_daily
+
+
+def compute_period_stats(df: pd.DataFrame, current_start: pd.Timestamp, current_end: pd.Timestamp,
+                         prior_start: pd.Timestamp, prior_end: pd.Timestamp) -> dict:
+    """Compute average metrics for current and prior periods."""
+    current = df[(df["day"] >= current_start) & (df["day"] <= current_end)]
+    prior = df[(df["day"] >= prior_start) & (df["day"] <= prior_end)]
+
+    metrics = [
+        "sleep_score", "readiness_score", "activity_score", "steps",
+        "resting_heart_rate", "total_sleep_hours", "average_hrv",
+    ]
+    result = {}
+
+    for metric in metrics:
+        # Skip if column doesn't exist (for backwards compatibility)
+        if metric not in df.columns:
+            result[metric] = {
+                "current": None, "prior": None, "change": None,
+                "pct_change": None, "current_days": 0, "prior_days": 0,
+            }
+            continue
+
+        curr_avg = current[metric].mean() if len(current) > 0 else None
+        prior_avg = prior[metric].mean() if len(prior) > 0 else None
+
+        if pd.notna(curr_avg) and pd.notna(prior_avg) and prior_avg != 0:
+            pct_change = ((curr_avg - prior_avg) / prior_avg) * 100
+        else:
+            pct_change = None
+
+        result[metric] = {
+            "current": curr_avg,
+            "prior": prior_avg,
+            "change": curr_avg - prior_avg if pd.notna(curr_avg) and pd.notna(prior_avg) else None,
+            "pct_change": pct_change,
+            "current_days": len(current[current[metric].notna()]),
+            "prior_days": len(prior[prior[metric].notna()]),
+        }
+
+    return result
+
+
+def format_delta(value: float | None, is_pct: bool = False, higher_is_better: bool = True) -> str:
+    """Format a delta value with sign."""
+    if value is None:
+        return "N/A"
+    sign = "+" if value > 0 else ""
+    if is_pct:
+        return f"{sign}{value:.1f}%"
+    return f"{sign}{value:.1f}"
+
+
+def get_delta_color(value: float | None, higher_is_better: bool = True) -> str:
+    """Get color for delta based on direction."""
+    if value is None or value == 0:
+        return "off"
+    if higher_is_better:
+        return "normal" if value > 0 else "inverse"
+    return "inverse" if value > 0 else "normal"
 
 load_dotenv()
 
@@ -75,9 +135,14 @@ df = load_oura_daily()
 df["day"] = pd.to_datetime(df["day"])
 
 # Convert nullable Int64 columns to float for Altair compatibility
-int_cols = ["sleep_score", "readiness_score", "activity_score", "steps",
-            "active_calories", "total_calories", "walking_distance_meters"]
-for col in int_cols:
+int_cols = [
+    "sleep_score", "readiness_score", "activity_score", "steps",
+    "active_calories", "total_calories", "walking_distance_meters",
+    "resting_heart_rate", "average_hrv", "sleep_efficiency",
+]
+float_cols = ["total_sleep_hours", "average_heart_rate"]
+
+for col in int_cols + float_cols:
     if col in df.columns:
         df[col] = df[col].astype(float)
 
@@ -135,6 +200,209 @@ col2.metric("Readiness Score", f"{avg_readiness:.0f}" if pd.notna(avg_readiness)
 col3.metric("Activity Score", f"{avg_activity:.0f}" if pd.notna(avg_activity) else "N/A")
 col4.metric("Wellness Score", f"{avg_wellness:.0f}" if pd.notna(avg_wellness) else "N/A")
 col5.metric("Avg Steps", f"{avg_steps:,.0f}" if pd.notna(avg_steps) else "N/A")
+
+# Trend Charts with Period-over-Period Comparisons
+st.subheader("Trends")
+
+# Chart configuration controls
+cfg_col1, cfg_col2, cfg_col3 = st.columns(3)
+with cfg_col1:
+    smoothing = st.selectbox(
+        "Data Smoothing",
+        ["Daily", "7-day MA", "30-day MA"],
+        index=0,
+        help="How to smooth the data points",
+    )
+with cfg_col2:
+    tick_interval = st.selectbox(
+        "Tick Interval",
+        ["Day", "Week", "Month"],
+        index=0,
+        help="Granularity of data points on x-axis",
+    )
+with cfg_col3:
+    comparison = st.selectbox(
+        "Comparison Period",
+        ["Week over Week", "Month over Month", "Year over Year"],
+        index=0,
+        help="What period the change bars compare against",
+    )
+
+# Prepare data based on settings
+df_trends = df.sort_values("day").copy()
+
+# Apply smoothing
+smoothing_window = {"Daily": 1, "7-day MA": 7, "30-day MA": 30}[smoothing]
+metrics_config = [
+    {"col": "resting_heart_rate", "label": "Resting HR", "unit": "bpm", "color": "#ef4444", "higher_better": False},
+    {"col": "sleep_score", "label": "Sleep Quality", "unit": "", "color": "#6366f1", "higher_better": True},
+    {"col": "readiness_score", "label": "Readiness", "unit": "", "color": "#22c55e", "higher_better": True},
+    {"col": "activity_score", "label": "Activity", "unit": "", "color": "#f59e0b", "higher_better": True},
+]
+
+for m in metrics_config:
+    col = m["col"]
+    if col in df_trends.columns:
+        if smoothing_window > 1:
+            df_trends[f"{col}_smooth"] = df_trends[col].rolling(window=smoothing_window, min_periods=1).mean()
+        else:
+            df_trends[f"{col}_smooth"] = df_trends[col]
+
+# Aggregate by tick interval
+if tick_interval == "Week":
+    df_trends["tick"] = df_trends["day"].dt.to_period("W").dt.start_time
+elif tick_interval == "Month":
+    df_trends["tick"] = df_trends["day"].dt.to_period("M").dt.start_time
+else:
+    df_trends["tick"] = df_trends["day"]
+
+# Aggregate to tick level
+agg_cols = {f"{m['col']}_smooth": "mean" for m in metrics_config if f"{m['col']}_smooth" in df_trends.columns}
+df_agg = df_trends.groupby("tick").agg(agg_cols).reset_index()
+
+# Calculate period-over-period change
+comparison_shift = {"Week over Week": 7, "Month over Month": 30, "Year over Year": 365}[comparison]
+if tick_interval == "Week":
+    shift_periods = comparison_shift // 7
+elif tick_interval == "Month":
+    shift_periods = comparison_shift // 30
+else:
+    shift_periods = comparison_shift
+
+for m in metrics_config:
+    col = m["col"]
+    smooth_col = f"{col}_smooth"
+    if smooth_col in df_agg.columns:
+        df_agg[f"{col}_change"] = df_agg[smooth_col] - df_agg[smooth_col].shift(shift_periods)
+
+# Limit to recent data for display
+max_ticks = {"Day": 30, "Week": 12, "Month": 12}[tick_interval]
+total_rows = len(df_agg)
+
+# Check if we have enough data for the selected comparison
+has_enough_data = total_rows > shift_periods
+
+if comparison == "Year over Year" and not has_enough_data:
+    st.warning(f"Not enough historical data for Year over Year comparison. Need more than {shift_periods} {tick_interval.lower()}s of data (have {total_rows}). Try switching to Week over Week or Month over Month.")
+    # Fall back to showing recent data without change bars
+    df_chart = df_agg.tail(max_ticks).copy()
+else:
+    df_chart = df_agg.tail(max_ticks).copy()
+
+# Format tick labels
+if tick_interval == "Month":
+    df_chart["tick_label"] = df_chart["tick"].dt.strftime("%b %Y")
+else:
+    df_chart["tick_label"] = df_chart["tick"].dt.strftime("%b %d")
+
+tick_order = df_chart["tick_label"].tolist()
+
+
+def create_metric_chart(metric_config: dict, data: pd.DataFrame, tick_order: list) -> alt.Chart | None:
+    """Create a combined line + bar chart for a single metric."""
+    col = metric_config["col"]
+    smooth_col = f"{col}_smooth"
+    change_col = f"{col}_change"
+    label = metric_config["label"]
+    unit = metric_config["unit"]
+
+    if smooth_col not in data.columns or data[smooth_col].isna().all():
+        return None
+
+    chart_data = data[["tick_label", smooth_col, change_col]].copy()
+    chart_data = chart_data.dropna(subset=[smooth_col])
+    if len(chart_data) == 0:
+        return None
+
+    # Rename columns for cleaner display
+    chart_data = chart_data.rename(columns={smooth_col: "value", change_col: "change"})
+
+    # Line for the metric value
+    line = alt.Chart(chart_data).mark_line(
+        color=metric_config["color"],
+        strokeWidth=2,
+    ).encode(
+        x=alt.X("tick_label:N", sort=tick_order, axis=alt.Axis(labelAngle=-45, title=None)),
+        y=alt.Y("value:Q", title=f"{label} ({unit})" if unit else label, scale=alt.Scale(zero=False)),
+        tooltip=[
+            alt.Tooltip("tick_label:N", title="Date"),
+            alt.Tooltip("value:Q", title=label, format=".1f"),
+        ],
+    )
+
+    # Points on the line
+    points = alt.Chart(chart_data).mark_point(
+        color=metric_config["color"],
+        size=30,
+    ).encode(
+        x=alt.X("tick_label:N", sort=tick_order),
+        y=alt.Y("value:Q"),
+    )
+
+    # Bars for period change (only where we have change data)
+    bar_data = chart_data.dropna(subset=["change"]).copy()
+    if len(bar_data) > 0:
+        # Determine bar color based on whether higher is better
+        if metric_config["higher_better"]:
+            bar_data["bar_color"] = bar_data["change"].apply(lambda x: "#22c55e" if x > 0 else "#ef4444")
+        else:
+            bar_data["bar_color"] = bar_data["change"].apply(lambda x: "#ef4444" if x > 0 else "#22c55e")
+
+        # Calculate bar width based on number of data points to avoid overlap
+        num_points = len(bar_data)
+        bar_width = max(2, min(12, 400 // num_points))  # Scale width: more points = thinner bars
+
+        bars = alt.Chart(bar_data).mark_bar(opacity=0.4, width=bar_width).encode(
+            x=alt.X("tick_label:N", sort=tick_order, axis=alt.Axis(labels=False, title=None)),
+            y=alt.Y("change:Q", title="Change"),
+            y2=alt.datum(0),
+            color=alt.Color("bar_color:N", scale=None),
+            tooltip=[
+                alt.Tooltip("tick_label:N", title="Date"),
+                alt.Tooltip("change:Q", title="Change", format="+.1f"),
+            ],
+        )
+
+        # Stack vertically: line chart on top, bar chart below
+        line_chart = alt.layer(line, points).properties(height=120)
+        bar_chart = bars.properties(height=60)
+
+        combined = alt.vconcat(line_chart, bar_chart, spacing=0).properties(
+            title=f"{label} ({unit})" if unit else label,
+        )
+    else:
+        combined = alt.layer(line, points).properties(
+            height=180,
+            title=f"{label} ({unit})" if unit else label,
+        )
+
+    return combined
+
+
+# Render charts in rows of 2
+available_metrics = [m for m in metrics_config if f"{m['col']}_smooth" in df_chart.columns and df_chart[f"{m['col']}_smooth"].notna().any()]
+
+# Row 1: Resting HR, Sleep Quality
+row1_metrics = [m for m in available_metrics if m["col"] in ["resting_heart_rate", "sleep_score"]]
+if row1_metrics:
+    cols = st.columns(2)
+    for i, m in enumerate(row1_metrics):
+        chart = create_metric_chart(m, df_chart, tick_order)
+        if chart:
+            cols[i].altair_chart(chart, use_container_width=True)
+
+# Row 2: Readiness, Activity
+row2_metrics = [m for m in available_metrics if m["col"] in ["readiness_score", "activity_score"]]
+if row2_metrics:
+    cols = st.columns(2)
+    for i, m in enumerate(row2_metrics):
+        chart = create_metric_chart(m, df_chart, tick_order)
+        if chart:
+            cols[i].altair_chart(chart, use_container_width=True)
+
+# Show info if health metrics are missing
+if "resting_heart_rate" not in [m["col"] for m in available_metrics]:
+    st.info("Resting HR requires syncing sleep session data. Run `make sync-oura FULL=1` to populate.")
 
 # Scores over time chart
 st.subheader("Scores Over Time")

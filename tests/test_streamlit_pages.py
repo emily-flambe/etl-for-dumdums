@@ -9,9 +9,6 @@ These tests verify that Streamlit pages render without errors by:
 Run with: make test
 """
 
-import os
-from unittest.mock import MagicMock, patch
-
 import altair as alt
 import pandas as pd
 import pytest
