@@ -21,3 +21,4 @@ __pycache__/
 
 # Plans (messy working docs)
 docs/plans/
+notebooks/__marimo__/

@@ -13,7 +13,7 @@ FULL ?=
         dbt-run dbt-run-linear dbt-run-github dbt-run-oura dbt-run-hacker-news dbt-run-trends dbt-run-fda-food dbt-run-iowa-liquor dbt-run-stocks \
         dbt-test dbt-test-linear dbt-test-github dbt-test-oura dbt-test-hacker-news dbt-test-trends dbt-test-fda-food dbt-test-iowa-liquor dbt-test-stocks \
         dbt-compile dbt-debug dbt-deps dbt-clean dbt-docs dbt-docs-serve dbt-seed dbt-snapshot \
-        app app-public deploy test
+        app app-public deploy test notebook notebook-oura notebook-export
 
 # Default target
 help:
@@ -61,6 +61,11 @@ help:
 	@echo "  make app                  - Run Streamlit dashboard (all pages)"
 	@echo "  make app-public           - Run in public mode (hides PII pages)"
 	@echo "  make deploy               - Deploy to Google Cloud Run"
+	@echo ""
+	@echo "Notebooks (marimo):"
+	@echo "  make notebook-oura        - Edit Oura investigation notebook"
+	@echo "  make notebook-oura-run    - Run as interactive app"
+	@echo "  make notebook-oura-export - Export to HTML"
 	@echo ""
 	@echo "Tests:"
 	@echo "  make test                 - Run all Python tests"
@@ -239,6 +244,17 @@ app-public:
 
 deploy:
 	./deploy.sh
+
+# ---------- Notebooks (marimo) ----------
+
+notebook-oura:
+	uv run marimo edit notebooks/oura_investigation.py
+
+notebook-oura-run:
+	uv run marimo run notebooks/oura_investigation.py
+
+notebook-oura-export:
+	uv run marimo export html notebooks/oura_investigation.py -o notebooks/oura_investigation.html
 
 # ---------- Tests ----------
 
