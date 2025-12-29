@@ -11,6 +11,7 @@ on:
       - 'pages/**'
       - 'lib/**'
       - 'sources/**'
+      - 'notebooks/*.html'
       - 'Dockerfile'
       - 'pyproject.toml'
       - 'uv.lock'

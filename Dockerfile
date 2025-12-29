@@ -23,6 +23,7 @@ COPY app.py Summary.py data.py ./
 COPY pages/ ./pages/
 COPY lib/ ./lib/
 COPY sources/ ./sources/
+COPY notebooks/*.html ./notebooks/
 
 # Set environment variables
 ENV DEPLOYMENT_MODE=public
