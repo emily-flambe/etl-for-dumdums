@@ -256,19 +256,50 @@ class HNCommentsSource(Source):
         bigquery.SchemaField("posted_day", "DATE"),
     ]
 
-    def __init__(self, lookback_days: int = DEFAULT_COMMENTS_LOOKBACK_DAYS, top_stories_per_day: int = DEFAULT_TOP_STORIES_PER_DAY):
+    def __init__(
+        self,
+        lookback_days: int = DEFAULT_COMMENTS_LOOKBACK_DAYS,
+        top_stories_per_day: int = DEFAULT_TOP_STORIES_PER_DAY,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ):
+        """Initialize HNCommentsSource.
+
+        Args:
+            lookback_days: Days to look back from today (ignored if start_date/end_date set)
+            top_stories_per_day: Top N stories by activity per day to fetch comments from
+            start_date: Start date for backfill (YYYY-MM-DD format, inclusive)
+            end_date: End date for backfill (YYYY-MM-DD format, inclusive)
+        """
         self.lookback_days = lookback_days
         self.top_stories_per_day = top_stories_per_day
+        self.start_date = start_date
+        self.end_date = end_date
 
     def fetch(self) -> list[dict[str, Any]]:
         """Fetch top-level comments from top stories by activity per day."""
-        logger.info(f"Fetching HN comments from top {self.top_stories_per_day} stories/day for last {self.lookback_days} days...")
-
         client = bq.get_client()
+
+        # Determine date filter based on whether we're doing a backfill or lookback
+        if self.start_date and self.end_date:
+            logger.info(f"Fetching HN comments from top {self.top_stories_per_day} stories/day for {self.start_date} to {self.end_date}...")
+            date_filter = "`timestamp` >= TIMESTAMP(@start_date) AND `timestamp` < TIMESTAMP_ADD(TIMESTAMP(@end_date), INTERVAL 1 DAY)"
+            query_params = [
+                bigquery.ScalarQueryParameter("start_date", "STRING", self.start_date),
+                bigquery.ScalarQueryParameter("end_date", "STRING", self.end_date),
+                bigquery.ScalarQueryParameter("top_stories_per_day", "INT64", self.top_stories_per_day),
+            ]
+        else:
+            logger.info(f"Fetching HN comments from top {self.top_stories_per_day} stories/day for last {self.lookback_days} days...")
+            date_filter = "`timestamp` >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @lookback_days DAY)"
+            query_params = [
+                bigquery.ScalarQueryParameter("lookback_days", "INT64", self.lookback_days),
+                bigquery.ScalarQueryParameter("top_stories_per_day", "INT64", self.top_stories_per_day),
+            ]
 
         # Query comments from the top N most-discussed stories per day
         # This focuses sentiment analysis on the most active discussions
-        query = r"""
+        query = f"""
         WITH stories_ranked AS (
             -- Rank stories by comment count (descendants) within each day
             SELECT
@@ -281,7 +312,7 @@ class HNCommentsSource(Source):
                 ) as rank_in_day
             FROM `bigquery-public-data.hacker_news.full`
             WHERE type = 'story'
-              AND `timestamp` >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @lookback_days DAY)
+              AND {date_filter}
               AND deleted IS NOT TRUE
               AND dead IS NOT TRUE
               AND descendants > 0
@@ -311,12 +342,7 @@ class HNCommentsSource(Source):
         ORDER BY c.`timestamp` DESC
         """
 
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("lookback_days", "INT64", self.lookback_days),
-                bigquery.ScalarQueryParameter("top_stories_per_day", "INT64", self.top_stories_per_day),
-            ]
-        )
+        job_config = bigquery.QueryJobConfig(query_parameters=query_params)
 
         logger.info("Executing query against bigquery-public-data.hacker_news.full...")
         result = client.query(query, job_config=job_config).result()

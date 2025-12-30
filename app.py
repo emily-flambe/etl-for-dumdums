@@ -26,7 +26,7 @@ SUMMARY_PAGE = st.Page("Summary.py", title="Summary", default=True)
 # Pages with public or personal data (safe for public deployment)
 PUBLIC_PAGES = [
     st.Page("pages/3_Oura_Wellness.py", title="Oura Wellness", icon=":material/favorite:"),
-    st.Page("pages/3b_Oura_Investigation.py", title="Oura Investigation", icon=":material/science:"),
+    st.Page("pages/Oura_Investigation.py", title="Oura Investigation", icon=":material/science:"),
     st.Page("pages/4_Hacker_News.py", title="Hacker News", icon=":material/newspaper:"),
     st.Page("pages/5_HN_Sentiment.py", title="HN Sentiment", icon=":material/sentiment_satisfied:"),
     st.Page("pages/6_Google_Trends.py", title="Google Trends", icon=":material/trending_up:"),
