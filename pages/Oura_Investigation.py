@@ -63,7 +63,7 @@ col1, col2 = st.columns(2)
 with col1:
     chart_sleep_dow = (
         alt.Chart(dow_stats)
-        .mark_bar(color="#6366f1")
+        .mark_line(point=True, color="#6366f1", strokeWidth=2)
         .encode(
             x=alt.X("day_of_week:N", sort=dow_order, title="Day of Week"),
             y=alt.Y("total_sleep_hours_mean:Q", title="Avg Sleep (hrs)", scale=alt.Scale(zero=False)),
