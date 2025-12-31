@@ -20,11 +20,7 @@ from data import load_oura_daily
 st.set_page_config(layout="wide")
 
 st.title("Oura Data Investigation")
-st.markdown("""
-**5 time-based patterns explored across 4+ years of personal wellness data.**
-
-This analysis looks for genuine behavioral patterns rather than reverse-engineering Oura's algorithms.
-""")
+st.markdown("**5 time-based patterns explored across 4+ years of personal wellness data.**")
 
 # Load data
 df = load_oura_daily()
