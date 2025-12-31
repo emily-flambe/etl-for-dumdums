@@ -66,7 +66,7 @@ with col1:
         .mark_bar(color="#6366f1")
         .encode(
             x=alt.X("day_of_week:N", sort=dow_order, title="Day of Week"),
-            y=alt.Y("total_sleep_hours_mean:Q", title="Average Sleep Hours", scale=alt.Scale(domain=[5.5, 7.5])),
+            y=alt.Y("total_sleep_hours_mean:Q", title="Avg Sleep (hrs)", scale=alt.Scale(zero=False)),
             tooltip=["day_of_week:N", alt.Tooltip("total_sleep_hours_mean:Q", format=".2f", title="Avg Hours")],
         )
         .properties(height=300, title="Sleep Hours by Day")
@@ -130,7 +130,7 @@ with col1:
         .mark_line(strokeWidth=3, color="#6366f1", point=True)
         .encode(
             x=alt.X("month_name:N", sort=month_order, title="Month"),
-            y=alt.Y("total_sleep_hours:Q", title="Avg Sleep Hours", scale=alt.Scale(domain=[5.5, 7.5])),
+            y=alt.Y("total_sleep_hours:Q", title="Avg Sleep (hrs)", scale=alt.Scale(zero=False)),
             tooltip=["month_name:N", alt.Tooltip("total_sleep_hours:Q", format=".2f")],
         )
         .properties(height=300, title="Sleep by Month")
@@ -271,7 +271,7 @@ with col1:
         .mark_bar()
         .encode(
             x=alt.X("type:N", title=""),
-            y=alt.Y("total_sleep_hours:Q", title="Avg Sleep Hours", scale=alt.Scale(domain=[5.5, 7.5])),
+            y=alt.Y("total_sleep_hours:Q", title="Avg Sleep (hrs)", scale=alt.Scale(zero=False)),
             color=alt.Color("type:N", scale=alt.Scale(domain=["Weekday", "Weekend"], range=["#64748b", "#22c55e"])),
             tooltip=["type:N", alt.Tooltip("total_sleep_hours:Q", format=".2f")],
         )
