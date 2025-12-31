@@ -310,7 +310,7 @@ st.markdown("---")
 st.header("5. Weekly Rhythm (Autocorrelation)")
 st.markdown("**Is there a predictable 7-day cycle?**")
 
-def calc_autocorr(series, max_lag=14):
+def calc_autocorr(series, max_lag=7):
     result = []
     for lag in range(1, max_lag + 1):
         shifted = series.shift(lag)
