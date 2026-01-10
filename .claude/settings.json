@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(rm -rf /)",
+      "Bash(*--force*)",
+      "Bash(*> .env*)",
+      "Bash(*>> .env*)",
+      "Write(.env)",
+      "Write(.secrets/*)",
+      "Write(*credentials*)",
+      "Write(**/credentials.json)",
+      "Read(.env)",
+      "Read(.secrets/*)",
+      "Edit(.env,*)",
+      "Edit(.secrets/*,*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/emilycogsdill/Documents/GitHub/etl-for-dumdums-claude-config && uv run ruff check --fix \"$CLAUDE_FILE_PATH\" 2>/dev/null || true"
+          },
+          {
+            "type": "command",
+            "command": "cd /Users/emilycogsdill/Documents/GitHub/etl-for-dumdums-claude-config && uv run ruff format \"$CLAUDE_FILE_PATH\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}

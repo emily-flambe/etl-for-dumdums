@@ -1,117 +1,45 @@
 # CLAUDE.md - Project Instructions
 
-## What This Project Is
+## What This Is
 
-A personal ETL + analytics pipeline that:
-1. **Extracts** data from APIs (Linear, GitHub, Oura) and public datasets (Hacker News) via Python scripts
-2. **Loads** raw data into BigQuery (one dataset per source)
-3. **Transforms** raw data into analytics-ready tables using dbt
-
-## Directory Structure
+Personal ETL pipeline: sync data from APIs to BigQuery, transform with dbt, visualize with Streamlit.
 
 ```
-etl-for-dumdums/
-├── Makefile                    # Build targets (make run, make dbt, etc.)
-├── .github/workflows/          # GitHub Actions for daily syncs (sync-*.yml)
-├── lib/                        # Shared utilities (bigquery.py, source.py)
-├── sources/                    # Source classes per API (linear.py, github.py, ...)
-├── scripts/                    # Entry points (sync_linear.py, sync_github.py, ...)
-├── pages/                      # Streamlit sub-pages (1_Linear.py, 2_GitHub_PRs.py, ...)
-├── app.py                      # Streamlit home page
-├── app_data.py                 # Cached data loaders for Streamlit
-└── dbt/
-    └── models/
-        ├── staging/<source>/   # Views: stg_<source>__<entity>
-        └── marts/<source>/     # Tables: fct_*, dim_*
-```
-
-## Architecture
-
-```
-APIs (Linear, GitHub, Oura) + Public Datasets (Hacker News)
-    ↓ Python ETL (scripts/)
-BigQuery source datasets (linear.raw_*, github.raw_*, oura.raw_*, hacker_news.raw_*)
+APIs (Linear, GitHub, Oura, etc.) + Public Datasets (Hacker News, FDA, Iowa Liquor)
+    ↓ Python ETL (scripts/sync_*.py)
+BigQuery raw tables (*.raw_*)
     ↓ dbt (dbt/models/)
-BigQuery analytics tables (linear.stg_*, linear.fct_*, linear.dim_*, etc.)
+BigQuery analytics tables (*.stg_*, *.fct_*, *.dim_*)
+    ↓
+Streamlit Dashboard (app.py, pages/)
 ```
 
-One dataset per source. Raw tables prefixed with `raw_`, dbt models in same dataset.
+## Tech Stack
 
-## Key Patterns
+- **Language**: Python 3.11+
+- **Package Manager**: uv
+- **ETL**: Custom Python scripts using `lib/source.py` base class
+- **Data Warehouse**: BigQuery (one dataset per source)
+- **Transformations**: dbt (BigQuery adapter)
+- **Dashboard**: Streamlit with Altair charts
+- **Notebooks**: Marimo
+- **CI/CD**: GitHub Actions, deploys to Cloud Run
+- **Linting**: ruff
+- **Type Checking**: pyright
 
-### Adding a New Source
+## Key Directories
 
-1. Create `sources/<source_name>.py` with classes extending `Source`:
-   - Define `dataset_id`, `table_id` (use `raw_` prefix), `primary_key`, `schema`
-   - Implement `fetch()` to retrieve raw API data
-   - Implement `transform()` to convert to BigQuery row format
+```
+scripts/           # ETL entry points (sync_linear.py, sync_github.py, etc.)
+sources/           # Source implementations extending lib/source.py
+lib/               # Shared utilities (bigquery.py, source.py)
+dbt/models/        # dbt models (staging/ views, marts/ tables)
+pages/             # Streamlit sub-pages
+tests/             # pytest tests for Streamlit pages
+.github/workflows/ # CI/CD and scheduled syncs
+```
 
-2. Create `scripts/sync_<source_name>.py` entry point:
-   - Instantiate source classes
-   - Call `run_sync(source)` for each
-
-3. Add Makefile target:
-   - Add `sync-<source>` target
-   - Add to `sync:` dependencies
-
-4. Add dbt models:
-   - `dbt/models/staging/<source>/`: One view per table, rename columns
-   - `dbt/models/marts/core/`: Join sources, add derived fields
-   - Naming: `stg_<source>__<entity>`, `fct_<entity>`, `dim_<entity>`
-
-5. Add GitHub workflow in `.github/workflows/`
-
-### ETL Conventions
-
-- **Incremental by default**: All syncs fetch only recently updated records
-- **Full sync option**: Use `--full` flag to fetch all historical records
-- **BigQuery MERGE**: Uses upsert pattern (safe to run full sync anytime, no duplicates)
-- **Source-specific datasets**: `linear.*`, `github.*` (one dataset per source)
-- **Raw table prefix**: All ETL tables named `raw_*` (e.g., `raw_issues`)
-- **Temp tables**: Written to `raw_data` dataset, cleaned up after merge
-- **Primary keys**: Every table must have a `primary_key` for merge operations
-
-### Sync Modes
-
-| Source | Incremental (default) | Full (`--full`) |
-|--------|----------------------|-----------------|
-| Linear | Last 7 days | All issues |
-| GitHub | Last 30 days | All PRs |
-| Oura | Last 7 days | All historical data |
-| Hacker News (stories) | Last 30 days | Last 5 years |
-| Hacker News (comments) | Last 7 days | Last 5 years |
-
-**When to use full sync:**
-- First time setup (empty tables)
-- Backfilling historical data
-- Data recovery after issues
-
-### dbt Conventions
-
-- **Staging models**: Views that rename columns (e.g., `id` -> `issue_id`)
-- **Mart models**: Tables with joins and derived fields
-- **Materialization**: staging = view, marts = table (set in dbt_project.yml)
-- **Output dataset**: Same as source (e.g., `linear.*`)
-- **Schema naming**: Custom `generate_schema_name` macro in `dbt/macros/` ensures models go to their specified `schema:` config without prefix concatenation
-
-## Environment Variables
-
-| Variable | Used By | Description |
-|----------|---------|-------------|
-| `GCP_PROJECT_ID` | ETL, dbt | Target GCP project |
-| `GCP_SA_KEY` | ETL | Base64-encoded service account JSON |
-| `GCP_SA_KEY_FILE` | dbt | Path to credentials.json file |
-| `LINEAR_API_KEY` | ETL | Linear API key |
-| `GITHUB_TOKEN` | ETL | GitHub PAT with repo and read:org scopes |
-| `ORGANIZATION` | ETL | GitHub organization name |
-| `REPOSITORIES` | ETL | Comma-separated list of repo names (e.g., `repo1,repo2`) |
-| `OURA_API_TOKEN` | ETL | Oura personal access token |
-| `CLOUDFLARE_ACCOUNT_ID` | ETL | Cloudflare account ID (for Workers AI) |
-| `CLOUDFLARE_WORKERS_AI_TOKEN` | ETL | Cloudflare Workers AI API token |
-| `DEPLOYMENT_MODE` | Streamlit | `local` (all pages) or `public` (public pages only) |
-| `OURA_PAGE_PASSWORD` | Streamlit | Password to protect Oura page in public deployment |
-
-## Common Commands
+## Essential Commands
 
 ```bash
 # Install dependencies
@@ -120,203 +48,90 @@ uv sync
 # Run full pipeline (incremental sync + dbt)
 make run
 
-# Syncs (add FULL=1 for full sync)
-make sync               # All sources (incremental)
-make sync-linear        # Linear only (7 day lookback)
-make sync-github        # GitHub only (30 day lookback)
-make sync-oura          # Oura only (7 day lookback)
-make sync-hacker-news   # Hacker News only (30 day lookback)
-make sync-linear FULL=1 # Linear full sync
-make sync-oura FULL=1   # Oura full sync (all history)
-make sync-hacker-news FULL=1 # Hacker News full sync (5 years)
+# Individual syncs (add FULL=1 for historical backfill)
+make sync-linear        # Last 7 days
+make sync-github        # Last 30 days
+make sync-oura          # Last 7 days
+make sync-hacker-news   # Last 30 days
+make sync-<source> FULL=1  # Full historical sync
 
-# dbt (append -linear, -github, -oura, or -hacker-news to filter)
-make dbt                # Build + test all models
-make dbt-linear         # Build + test Linear models
-make dbt-hacker-news    # Build + test Hacker News models
-make dbt-run            # Run all models (no tests)
-make dbt-run-linear     # Run Linear models
-make dbt-test           # Test all models
-make dbt-test-github    # Test GitHub models
-make dbt-compile        # Compile (no execution)
-make dbt-docs           # Generate docs
-make dbt-docs-serve     # Serve docs locally
-make dbt-debug          # Test connection
-make dbt-clean          # Clean artifacts
+# dbt commands (append -<source> to filter)
+make dbt               # Build + test all models
+make dbt-linear        # Build + test Linear models only
+make dbt-run           # Run without tests
+make dbt-test          # Test only
 
-# See all commands
+# Dashboard
+make app               # Run locally (all pages)
+make app-public        # Run in public mode (hides PII pages)
+
+# Tests
+make test              # Run pytest
+
+# Notebooks
+make notebook-oura     # Edit Oura investigation notebook
+
+# All commands
 make help
 ```
 
-## BigQuery Tables
+## Environment Variables
 
-### Linear Dataset
+Copy `.env.example` to `.env` and fill in:
+- `GCP_PROJECT_ID`, `GCP_SA_KEY` - BigQuery access
+- `LINEAR_API_KEY`, `GITHUB_TOKEN`, `OURA_API_TOKEN` - API credentials
+- `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_WORKERS_AI_TOKEN` - Sentiment analysis
+- See `.env.example` for full list
 
-All Linear tables live in the `linear` dataset:
+## Adding a New Source
 
-| Table | Type | Description |
-|-------|------|-------------|
-| `linear.raw_issues` | ETL | Raw issues from Linear API |
-| `linear.raw_users` | ETL | Raw users from Linear API |
-| `linear.raw_cycles` | ETL | Raw cycles from Linear API |
-| `linear.stg_linear__issues` | dbt view | Staged issues |
-| `linear.stg_linear__users` | dbt view | Staged users |
-| `linear.stg_linear__cycles` | dbt view | Staged cycles |
-| `linear.fct_issues` | dbt table | Issues with user/cycle details |
-| `linear.dim_users` | dbt table | User dimension (Linear + GitHub joined) |
+1. Create `sources/<name>.py` with classes extending `Source`:
+   - Define `dataset_id`, `table_id` (prefix with `raw_`), `primary_key`, `schema`
+   - Implement `fetch()` and `transform()` methods
 
-### GitHub Dataset
+2. Create `scripts/sync_<name>.py` entry point
 
-| Table | Type | Description |
-|-------|------|-------------|
-| `github.raw_users` | ETL | Org members from GitHub API |
-| `github.raw_pull_requests` | ETL | PRs from configured repos |
-| `github.raw_pr_reviews` | ETL | PR reviews |
-| `github.raw_pr_comments` | ETL | PR review comments |
-| `github.stg_github__*` | dbt view | Staged GitHub tables |
-| `github.fct_pull_requests` | dbt table | PRs with author/review stats |
+3. Add Makefile targets: `sync-<name>`, `dbt-<name>`, `run-<name>`
 
-### Oura Dataset
+4. Add dbt models:
+   - `dbt/models/staging/<name>/` - Views renaming columns
+   - `dbt/models/marts/<name>/` - Tables with joins and derived fields
+   - Tag models with `tags: ["<name>"]`
 
-| Table | Type | Description |
-|-------|------|-------------|
-| `oura.raw_sleep` | ETL | Daily sleep scores and contributors |
-| `oura.raw_daily_readiness` | ETL | Daily readiness scores |
-| `oura.raw_daily_activity` | ETL | Daily activity metrics (steps, calories) |
-| `oura.stg_oura__sleep` | dbt view | Staged sleep data |
-| `oura.stg_oura__daily_readiness` | dbt view | Staged readiness data |
-| `oura.stg_oura__daily_activity` | dbt view | Staged activity data |
-| `oura.fct_oura_daily` | dbt table | Joined daily wellness metrics |
+5. Add GitHub workflow in `.github/workflows/sync-<name>.yml`
 
-### Hacker News Dataset
+6. Add Streamlit page in `pages/` and register in `app.py`
 
-| Table | Type | Description |
-|-------|------|-------------|
-| `hacker_news.raw_stories` | ETL | Stories from BigQuery public dataset |
-| `hacker_news.raw_comments` | ETL | Comments with sentiment scores (via Cloudflare AI) |
-| `hacker_news.stg_hn__stories` | dbt view | Staged stories |
-| `hacker_news.stg_hn__comments` | dbt view | Staged comments with sentiment |
-| `hacker_news.int_hn__comment_keywords` | dbt table | Comments matched to keywords via story |
-| `hacker_news.int_hn__comment_sentiment` | dbt table | Comments with keyword + sentiment |
-| `hacker_news.fct_hn_weekly_stats` | dbt table | Weekly aggregate statistics |
-| `hacker_news.fct_hn_domain_stats` | dbt table | Domain popularity by week |
-| `hacker_news.fct_hn_keyword_trends` | dbt table | Tech keyword mentions by week |
-| `hacker_news.fct_hn_keyword_sentiment` | dbt table | Monthly keyword sentiment trends |
+## Key Patterns
 
-Temp tables used during ETL merges go to `raw_data` dataset and are cleaned up automatically.
+### ETL
+- **Incremental by default**: Syncs fetch only recent data
+- **Full sync**: Use `--full` flag for historical backfill
+- **BigQuery MERGE**: Upsert pattern, safe to re-run
+- **Raw table prefix**: All ETL tables named `raw_*`
 
-## Streamlit App
+### dbt
+- **Staging**: Views that rename columns (e.g., `id` → `issue_id`)
+- **Marts**: Tables with joins and derived fields
+- **Naming**: `stg_<source>__<entity>`, `fct_*`, `dim_*`
 
-The Streamlit app lives in `app.py` (home page) and `pages/` (sub-pages).
+### Streamlit
+- **Page registration**: Pages must be registered in `app.py` (not auto-discovered)
+- **Data loaders**: Use `@st.cache_data(ttl=300)` in `data.py`
+- **Public vs Private**: `PUBLIC_PAGES` for public data, `PRIVATE_PAGES` for work data
 
-### Testing Streamlit Changes
+## Testing Streamlit Changes
 
-**IMPORTANT**: When modifying Streamlit pages, you MUST:
-1. Run the app with `make app`
-2. Navigate to the modified page in the browser
-3. **Take screenshots with Playwright and visually inspect them** - do not skip this step
-4. **Visually verify ALL charts render with actual data** (not empty axes/labels)
-5. Scroll through the entire page to check all visualizations
-6. Test interactive elements (filters, checkboxes, date pickers)
+When modifying Streamlit pages:
+1. Run `make app`
+2. Navigate to modified page
+3. **Take screenshots with Playwright** - verify charts show actual data
+4. Check for overlapping elements, proper spacing, readable labels
+5. Run `make test` for Altair chart validation
 
-Do NOT rely only on Python syntax checks or isolated data tests - many errors only appear at runtime when the page renders.
+Common Altair issues causing empty charts:
+- Complex tooltip format strings
+- Incompatible scale domains
+- Wrong column types (Int64, dbdate)
 
-**Visual verification is mandatory** - use Playwright to take screenshots and confirm:
-- Charts display data (lines, bars, points), not just axes and labels
-- Legends show and data is color-coded correctly
-- All sections of the page render without errors
-- **No overlapping elements** (bars, labels, text)
-- **Proper spacing** between chart elements
-- **Readable axis labels** (not too crowded or cut off)
-
-**Common Altair issues that cause empty charts**:
-- Complex tooltip configurations with format strings (e.g., `format="$.2f"`, `format=".1f%"`)
-- Using `scale=alt.Scale(domain=[...])` with incompatible data
-- Combining charts with `+` operator when data structures differ
-- DataFrame column types not serializing correctly (Int64, dbdate)
-
-**Fix for empty Altair charts**: Simplify the chart encoding first, then add complexity back incrementally:
-```python
-# Start simple - verify this works
-chart = alt.Chart(df).mark_bar().encode(x="col1:Q", y="col2:N")
-
-# Then add tooltips, colors, etc. one at a time
-```
-
-### Automated Visual Verification with Playwright
-
-When troubleshooting Streamlit visual issues, use Playwright to take screenshots:
-
-```python
-# Install browsers if needed
-uv run playwright install chromium
-
-# Take screenshot
-uv run python -c "
-from playwright.sync_api import sync_playwright
-import time
-
-with sync_playwright() as p:
-    browser = p.chromium.launch()
-    page = browser.new_page(viewport={'width': 1400, 'height': 900})
-    page.goto('http://localhost:8501/PAGE_NAME')
-    time.sleep(6)  # Wait for Streamlit to render
-
-    # Scroll to see different parts of page
-    page.mouse.move(700, 450)
-    page.mouse.wheel(0, 1500)  # Adjust scroll amount
-    time.sleep(1)
-
-    page.screenshot(path='/tmp/screenshot.png')
-    browser.close()
-"
-```
-
-Then use the Read tool to view `/tmp/screenshot.png` and verify visual changes.
-
-### Adding a New Streamlit Page
-
-**IMPORTANT**: This app uses explicit page registration in `app.py`, NOT auto-discovery from the `pages/` folder. You must register new pages or they won't appear in the sidebar.
-
-1. Create `pages/N_PageName.py` (N = order number)
-2. **Register the page in `app.py`**:
-   - Add to `PUBLIC_PAGES` list for public data pages
-   - Add to `PRIVATE_PAGES` list (inside the `else` block) for work/private pages
-   - Use format: `st.Page("pages/N_PageName.py", title="Page Name", icon=":material/icon_name:")`
-3. Add data loader function to `data.py` with `@st.cache_data(ttl=300)`
-4. Add tests to `tests/test_streamlit_pages.py` that exercise the chart code
-5. Run `make test` to verify charts render without Altair errors
-6. Run `make app` and navigate to the new page to verify it loads without errors
-7. Test all interactive elements (filters, charts, tables)
-
-## Cloudflare Workers AI
-
-This project uses Cloudflare Workers AI for sentiment analysis during ETL (see `sources/hacker_news.py`).
-
-### Key Details
-
-- **Model**: `@cf/huggingface/distilbert-sst-2-int8` (binary POSITIVE/NEGATIVE classification)
-- **API Endpoint**: `https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run/@cf/huggingface/distilbert-sst-2-int8`
-- **Free Tier**: 10,000 neurons/day (~4,000-5,000 text classifications)
-- **Pricing**: $0.011 per 1,000 neurons beyond free tier
-
-### Implementation Pattern
-
-Sentiment is computed during ETL (in Python `transform()` method), not in dbt. This approach:
-- Avoids BigQuery ML costs
-- Pre-computes sentiment once during sync
-- Stores results in raw tables (e.g., `sentiment_score`, `sentiment_label`, `sentiment_category`)
-- dbt models simply read/aggregate pre-computed values
-
-### Documentation
-
-- [Cloudflare Workers AI Pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/)
-- [Text Classification Models](https://developers.cloudflare.com/workers-ai/models/#text-classification)
-- [Sentiment Analysis Guide](https://developers.cloudflare.com/workers-ai/guides/tutorials/sentiment-analysis-with-workers-ai/)
-
-## Current State
-
-- **Working**: Full pipeline (ETL + dbt) runs via `make run`
-- **Working**: GitHub source syncs PRs, reviews, comments (configure via `ORGANIZATION` and `REPOSITORIES` env vars)
-- **Working**: Oura source syncs sleep, readiness, and activity data
-- **Working**: Hacker News source syncs stories and comments with sentiment analysis (via Cloudflare AI)
+Fix: Start with simple encoding, add complexity incrementally.
